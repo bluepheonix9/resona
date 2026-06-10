@@ -1,126 +1,133 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import React from 'react'
+import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native'
+import { router } from 'expo-router'
 import { colors } from '../../src/theme'
+import { Ionicons } from '@expo/vector-icons'
+import { TasteMatch } from '../../src/components/TasteMatch'
+import { getTasteMatch } from '../../src/lib/tasteMatch'
+import { formatVenueLabel, getGigImageColor, getGigs } from '../../src/lib/gigs'
+import type { GigStatus } from '../../src/types/gig'
 
-const RANKING_DATA = [
-  { id: 1, name: 'Radiohead', genre: 'Art Rock', color: '#C8472B' },
-  { id: 2, name: 'Slowdive', genre: 'Shoegaze', color: '#2563A8' },
-  { id: 3, name: 'Portishead', genre: 'Trip-Hop', color: '#2A7A4B' },
-  { id: 4, name: 'The National', genre: 'Indie Rock', color: '#7A3F9C' },
-  { id: 5, name: 'Grouper', genre: 'Ambient Folk', color: '#1F6E6E' },
-  { id: 6, name: 'Beach House', genre: 'Dream Pop', color: '#B36B1A' },
-  { id: 7, name: 'Faye Webster', genre: 'Indie Pop', color: '#8B3A5C' },
-  { id: 8, name: 'IDLES', genre: 'Post-Punk', color: '#185FA5' },
-]
+const TABS = ['Tonight', 'This week', 'Future Gigs']
+const FILTERS = ['All areas', 'Inner West', 'City', 'Nth Beaches', 'East']
 
-function ArtistTile({ name, color }: { name: string; color: string }) {
+function BadgePill({ status }: { status: GigStatus }) {
+  if (status === 'live') return (
+    <View style={{ backgroundColor: colors.live, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
+      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>● Live now</Text>
+    </View>
+  )
+  if (status === 'tonight') return (
+    <View style={{ backgroundColor: colors.accent, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
+      <Text style={{ color: colors.accentDark, fontSize: 10, fontWeight: '600' }}>Tonight</Text>
+    </View>
+  )
   return (
-    <View style={[styles.artistTile, { backgroundColor: color }]}>
-      <Text style={styles.artistTileText}>{name.charAt(0)}</Text>
+    <View style={{ backgroundColor: 'transparent', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: colors.accent }}>
+      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '600' }}>Free entry</Text>
     </View>
   )
 }
 
-function RankingItem({ rank, name, genre, color }: {
-  rank: number; name: string; genre: string; color: string
-}) {
-  return (
-    <View style={styles.rankingItem}>
-      <Text style={[styles.rankNum, { color: rank <= 3 ? colors.accent2 : colors.textMuted }]}>
-        {rank}
-      </Text>
-      <ArtistTile name={name} color={color} />
-      <View style={styles.rankInfo}>
-        <Text style={styles.rankName}>{name}</Text>
-        <Text style={styles.rankGenre}>{genre}</Text>
-      </View>
-      <Text style={styles.dragHandle}>≡</Text>
-    </View>
-  )
-}
+export default function HomeScreen() {
+  const [activeFilter, setActiveFilter] = React.useState('All areas')
+  const [activeTab, setActiveTab] = React.useState('Tonight')
 
-export default function ProfileScreen() {
+  const gigs = React.useMemo(
+    () => getGigs({ area: activeFilter }),
+    [activeFilter],
+  )
+
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.header} edges={['top']}>
-        <View style={styles.headerTopRow}>
-          <Text style={styles.logo}>resona<Text style={styles.logoDot}>.</Text></Text>
-        </View>
-        <View style={styles.profileTop}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>J</Text>
-          </View>
-          <View>
-            <Text style={styles.profileName}>Jordan Morrow</Text>
-            <Text style={styles.profileHandle}>@jxnmorrow</Text>
-          </View>
-        </View>
-        <Text style={styles.profileBio}>
-          deep cuts only. post-punk, dream pop, and the occasional guilty pleasure.
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 56, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
+          gig<Text style={{ color: colors.accent }}>.</Text>
         </Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>8</Text>
-            <Text style={styles.statLabel}>Artists</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>14</Text>
-            <Text style={styles.statLabel}>Matches</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>91%</Text>
-            <Text style={styles.statLabel}>Top match</Text>
-          </View>
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <Ionicons name="search-outline" size={22} color={colors.textSecondary} />
+          <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
         </View>
-      </SafeAreaView>
+      </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
-        {RANKING_DATA.map((artist, index) => (
-          <RankingItem
-            key={artist.id}
-            rank={index + 1}
-            name={artist.name}
-            genre={artist.genre}
-            color={artist.color}
-          />
+      {/* Time tabs */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: colors.border, marginBottom: 10 }}>
+        {TABS.map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: activeTab === tab ? colors.accent : 'transparent', marginRight: 4 }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: activeTab === tab ? '600' : '400', color: activeTab === tab ? colors.accent : colors.textMuted }}>{tab}</Text>
+          </TouchableOpacity>
         ))}
-        <TouchableOpacity style={styles.addBtn}>
-          <Text style={styles.addBtnText}>+ Add artist</Text>
-        </TouchableOpacity>
+      </View>
+
+      {/* Area filters */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 6, paddingHorizontal: 16, alignItems: 'center' }}
+        style={{ flexGrow: 0, marginBottom: 10 }}
+      >
+        {FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f}
+            onPress={() => setActiveFilter(f)}
+            style={{
+              backgroundColor: activeFilter === f ? colors.accent : colors.surface,
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 5,
+              borderWidth: 0.5,
+              borderColor: activeFilter === f ? colors.accent : colors.borderStrong,
+              marginVertical: 8,
+            }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '500', color: activeFilter === f ? colors.accentDark : colors.textSecondary }}>{f}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Section label */}
+      <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>ON NOW</Text>
+
+      {/* Gig feed */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        {gigs.map((gig) => (
+          <TouchableOpacity key={gig.id} onPress={() => router.push(`/gig/${gig.id}`)} style={{ backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: colors.borderStrong }}>
+            <View style={{ height: 160, backgroundColor: getGigImageColor(gig), alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ position: 'absolute', top: 10, left: 10 }}>
+                <BadgePill status={gig.status} />
+              </View>
+              <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: '#444' }}>
+                <Text style={{ color: '#ccc', fontSize: 10 }}>{gig.genre}</Text>
+              </View>
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <Text style={{ fontSize: 15, fontWeight: '500', color: '#fff' }}>{gig.band}</Text>
+                <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(gig)}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderTopWidth: 0.5, borderTopColor: colors.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>{gig.doorsTime}</Text>
+                <Text style={{ color: '#444' }}>·</Text>
+                <Text style={{ fontSize: 11, color: colors.accent }}>{gig.price}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {gig.interested != null && (
+                  <Text style={{ fontSize: 11, color: colors.textMuted }}>🔥 {gig.interested}</Text>
+                )}
+                <TasteMatch score={getTasteMatch(gig.id)} compact />
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  header: { backgroundColor: colors.background, borderBottomWidth: 2, borderBottomColor: colors.accent, paddingHorizontal: 18, paddingBottom: 0 },
-  headerTopRow: { paddingVertical: 12 },
-  logo: { fontFamily: 'serif', fontSize: 24, color: colors.surface, fontStyle: 'italic' },
-  logoDot: { color: colors.accent2 },
-  profileTop: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 10 },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 24, color: colors.white, fontWeight: '600' },
-  profileName: { fontSize: 20, color: colors.surface, fontWeight: '600' },
-  profileHandle: { fontSize: 12, color: 'rgba(245,240,232,0.45)', marginTop: 2 },
-  profileBio: { fontSize: 12, color: 'rgba(245,240,232,0.55)', lineHeight: 18, paddingBottom: 12 },
-  statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingVertical: 12 },
-  statItem: { flex: 1, alignItems: 'center' },
-  statNum: { fontSize: 18, color: colors.surface, fontWeight: '600' },
-  statLabel: { fontSize: 10, color: 'rgba(245,240,232,0.4)', marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  content: { flex: 1 },
-  contentInner: { padding: 14, paddingBottom: 32 },
-  rankingItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.white, borderRadius: 10, borderWidth: 0.5, borderColor: colors.border, padding: 10, marginBottom: 6 },
-  rankNum: { fontSize: 17, width: 22, textAlign: 'right', fontWeight: '500' },
-  artistTile: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  artistTileText: { fontSize: 16, color: colors.white, fontWeight: '600' },
-  rankInfo: { flex: 1 },
-  rankName: { fontSize: 13, color: colors.textPrimary, fontWeight: '600' },
-  rankGenre: { fontSize: 11, color: colors.textFaint, marginTop: 1 },
-  dragHandle: { fontSize: 18, color: colors.border },
-  addBtn: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 6 },
-  addBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
-})
