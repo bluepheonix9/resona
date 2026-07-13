@@ -3,16 +3,16 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, TextInput } from '
 import { router } from 'expo-router'
 import { colors } from '../../src/theme'
 import { Ionicons } from '@expo/vector-icons'
-import { TasteMatch } from '../../src/components/TasteMatch'
-import { getTasteMatch } from '../../src/lib/tasteMatch'
+import { SkillMatch } from '../../src/components/SkillMatch'
+import { getSkillMatch } from '../../src/lib/skillMatch'
 import {
-  getBrowseGenres,
-  getBrowseVibes,
-  getGigImageColor,
-  getStaffPicks,
+  getBrowseSports,
+  getBrowseTags,
+  getGameImageColor,
+  getFeaturedGames,
   getVenues,
-} from '../../src/lib/gigs'
-import type { Gig } from '../../src/types/gig'
+} from '../../src/lib/games'
+import type { Game } from '../../src/types/game'
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -22,12 +22,12 @@ function SectionLabel({ children }: { children: string }) {
   )
 }
 
-function StaffPickCard({ gig }: { gig: Gig }) {
-  const tasteMatch = getTasteMatch(gig.id)
+function FeaturedCard({ game }: { game: Game }) {
+  const skillMatch = getSkillMatch(game.id)
 
   return (
     <TouchableOpacity
-      onPress={() => router.push(`/gig/${gig.id}`)}
+      onPress={() => router.push(`/game/${game.id}`)}
       style={{
         width: 200,
         backgroundColor: colors.surface,
@@ -38,18 +38,18 @@ function StaffPickCard({ gig }: { gig: Gig }) {
         marginRight: 10,
       }}
     >
-      <View style={{ height: 110, backgroundColor: getGigImageColor(gig), justifyContent: 'flex-end', padding: 10 }}>
+      <View style={{ height: 110, backgroundColor: getGameImageColor(game), justifyContent: 'flex-end', padding: 10 }}>
         <View style={{ position: 'absolute', top: 8, right: 8 }}>
-          <TasteMatch score={tasteMatch} compact />
+          <SkillMatch score={skillMatch} compact />
         </View>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: '#fff' }}>{gig.band}</Text>
-        <Text style={{ fontSize: 10, color: '#aaa' }}>{gig.venue.name}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '500', color: '#fff' }}>{game.title}</Text>
+        <Text style={{ fontSize: 10, color: '#aaa' }}>{game.venue.name}</Text>
       </View>
       <View style={{ padding: 8, gap: 4 }}>
-        <Text style={{ fontSize: 10, color: colors.textMuted }}>{gig.genre}</Text>
+        <Text style={{ fontSize: 10, color: colors.textMuted }}>{game.sport}</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontSize: 10, color: colors.textSecondary }}>{gig.doorsTime}</Text>
-          <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '500' }}>{gig.price}</Text>
+          <Text style={{ fontSize: 10, color: colors.textSecondary }}>{game.startTime}</Text>
+          <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '500' }}>{game.price}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -57,11 +57,11 @@ function StaffPickCard({ gig }: { gig: Gig }) {
 }
 
 export default function DiscoverScreen() {
-  const [activeVibe, setActiveVibe] = React.useState<string | null>(null)
+  const [activeTag, setActiveTag] = React.useState<string | null>(null)
 
-  const staffPicks = getStaffPicks()
-  const genres = getBrowseGenres()
-  const vibes = getBrowseVibes()
+  const featured = getFeaturedGames()
+  const sports = getBrowseSports()
+  const tags = getBrowseTags()
   const venues = getVenues()
 
   return (
@@ -88,7 +88,7 @@ export default function DiscoverScreen() {
           >
             <Ionicons name="search-outline" size={18} color={colors.textMuted} />
             <TextInput
-              placeholder="Bands, venues, genres..."
+              placeholder="Sports, venues, areas..."
               placeholderTextColor={colors.textMuted}
               style={{ flex: 1, fontSize: 14, color: colors.textPrimary }}
             />
@@ -96,20 +96,20 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={{ paddingLeft: 16, marginBottom: 24 }}>
-          <SectionLabel>STAFF PICKS FOR YOU</SectionLabel>
+          <SectionLabel>FEATURED FOR YOU</SectionLabel>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {staffPicks.map((gig) => (
-              <StaffPickCard key={gig.id} gig={gig} />
+            {featured.map((game) => (
+              <FeaturedCard key={game.id} game={game} />
             ))}
           </ScrollView>
         </View>
 
         <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
-          <SectionLabel>BROWSE BY GENRE</SectionLabel>
+          <SectionLabel>BROWSE BY SPORT</SectionLabel>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {genres.map((genre) => (
+            {sports.map((sport) => (
               <TouchableOpacity
-                key={genre.id}
+                key={sport.id}
                 style={{
                   width: '31%',
                   backgroundColor: colors.surface,
@@ -120,38 +120,38 @@ export default function DiscoverScreen() {
                 }}
               >
                 <Text style={{ fontSize: 11, fontWeight: '500', color: colors.textPrimary }}>
-                  {genre.label}
+                  {sport.label}
                 </Text>
-                <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{genre.count} gigs</Text>
+                <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{sport.count} games</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         <View style={{ paddingHorizontal: 16, marginBottom: 24 }}>
-          <SectionLabel>BROWSE BY VIBE</SectionLabel>
+          <SectionLabel>BROWSE BY TAG</SectionLabel>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {vibes.map((vibe) => (
+            {tags.map((tag) => (
               <TouchableOpacity
-                key={vibe}
-                onPress={() => setActiveVibe(activeVibe === vibe ? null : vibe)}
+                key={tag}
+                onPress={() => setActiveTag(activeTag === tag ? null : tag)}
                 style={{
-                  backgroundColor: activeVibe === vibe ? colors.accent : colors.surface,
+                  backgroundColor: activeTag === tag ? colors.accent : colors.surface,
                   borderRadius: 20,
                   paddingHorizontal: 14,
                   paddingVertical: 7,
                   borderWidth: 0.5,
-                  borderColor: activeVibe === vibe ? colors.accent : colors.borderStrong,
+                  borderColor: activeTag === tag ? colors.accent : colors.borderStrong,
                 }}
               >
                 <Text
                   style={{
                     fontSize: 12,
                     fontWeight: '500',
-                    color: activeVibe === vibe ? colors.accentDark : colors.textSecondary,
+                    color: activeTag === tag ? colors.accentDark : colors.textSecondary,
                   }}
                 >
-                  {vibe}
+                  {tag}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -188,12 +188,12 @@ export default function DiscoverScreen() {
                       borderColor: colors.borderStrong,
                     }}
                   >
-                    <Ionicons name="business-outline" size={16} color={colors.textSecondary} />
+                    <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
                   </View>
                   <View>
                     <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textPrimary }}>{venue.name}</Text>
                     <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
-                      {venue.area} · {venue.gigs} upcoming
+                      {venue.area} · {venue.games} upcoming
                     </Text>
                   </View>
                 </View>

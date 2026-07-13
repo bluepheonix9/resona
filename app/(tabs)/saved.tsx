@@ -3,20 +3,20 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-nativ
 import { router } from 'expo-router'
 import { colors } from '../../src/theme'
 import { Ionicons } from '@expo/vector-icons'
-import { TasteMatch } from '../../src/components/TasteMatch'
-import { getTasteMatch } from '../../src/lib/tasteMatch'
+import { SkillMatch } from '../../src/components/SkillMatch'
+import { getSkillMatch } from '../../src/lib/skillMatch'
 import {
-  formatGigDate,
+  formatGameDate,
   formatVenueLabel,
-  getGigImageColor,
-  getGigs,
-  isGigUpcoming,
-} from '../../src/lib/gigs'
-import type { Gig, GigStatus } from '../../src/types/gig'
+  getGameImageColor,
+  getGames,
+  isGameUpcoming,
+} from '../../src/lib/games'
+import type { Game, GameStatus } from '../../src/types/game'
 
 const TABS = ['Upcoming', 'Past']
 
-// Local demo state until Supabase auth — maps gig id → when it was saved
+// Local demo state until auth — maps game id → when it was saved
 const SAVED_META: Record<string, { savedAt: string }> = {
   '2': { savedAt: '2 days ago' },
   '3': { savedAt: 'Yesterday' },
@@ -25,8 +25,8 @@ const SAVED_META: Record<string, { savedAt: string }> = {
 
 const INITIAL_SAVED_IDS = Object.keys(SAVED_META)
 
-function BadgePill({ gig }: { gig: Gig }) {
-  if (!isGigUpcoming(gig)) {
+function BadgePill({ game }: { game: Game }) {
+  if (!isGameUpcoming(game)) {
     return (
       <View style={{ backgroundColor: colors.surface2, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: colors.borderStrong }}>
         <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: '600' }}>Past</Text>
@@ -34,24 +34,24 @@ function BadgePill({ gig }: { gig: Gig }) {
     )
   }
 
-  const status: GigStatus = gig.status
+  const status: GameStatus = game.status
   if (status === 'live') {
     return (
       <View style={{ backgroundColor: colors.live, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>● Live now</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>● In progress</Text>
       </View>
     )
   }
-  if (status === 'tonight') {
+  if (status === 'upcoming') {
     return (
       <View style={{ backgroundColor: colors.accent, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
-        <Text style={{ color: colors.accentDark, fontSize: 10, fontWeight: '600' }}>Tonight</Text>
+        <Text style={{ color: colors.accentDark, fontSize: 10, fontWeight: '600' }}>Upcoming</Text>
       </View>
     )
   }
   return (
     <View style={{ backgroundColor: 'transparent', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: colors.accent }}>
-      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '600' }}>Free entry</Text>
+      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '600' }}>Open to join</Text>
     </View>
   )
 }
@@ -63,12 +63,12 @@ function EmptyState({ tab }: { tab: string }) {
         <Ionicons name="heart-outline" size={28} color={colors.textMuted} />
       </View>
       <Text style={{ fontSize: 17, fontWeight: '500', color: colors.textPrimary, marginBottom: 8 }}>
-        {tab === 'Upcoming' ? 'No saved gigs yet' : 'Nothing in the past'}
+        {tab === 'Upcoming' ? 'No saved games yet' : 'Nothing in the past'}
       </Text>
       <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>
         {tab === 'Upcoming'
-          ? 'Tap the heart on any gig to save it here and keep track of what you want to see.'
-          : 'Gigs you saved will show up here after they\'ve passed.'}
+          ? 'Tap the heart on any game to save it here and keep track of what you want to join.'
+          : 'Games you saved will show up here after they\'ve passed.'}
       </Text>
     </View>
   )
@@ -78,12 +78,12 @@ export default function SavedScreen() {
   const [activeTab, setActiveTab] = React.useState('Upcoming')
   const [savedIds, setSavedIds] = React.useState(INITIAL_SAVED_IDS)
 
-  const savedGigs = getGigs({ ids: savedIds })
-  const filteredGigs = savedGigs.filter((gig) =>
-    activeTab === 'Upcoming' ? isGigUpcoming(gig) : !isGigUpcoming(gig),
+  const savedGames = getGames({ ids: savedIds })
+  const filteredGames = savedGames.filter((game) =>
+    activeTab === 'Upcoming' ? isGameUpcoming(game) : !isGameUpcoming(game),
   )
 
-  const upcomingCount = savedGigs.filter((g) => isGigUpcoming(g)).length
+  const upcomingCount = savedGames.filter((g) => isGameUpcoming(g)).length
 
   function unsave(id: string) {
     setSavedIds((ids) => ids.filter((savedId) => savedId !== id))
@@ -129,12 +129,12 @@ export default function SavedScreen() {
         ))}
       </View>
 
-      {filteredGigs.length === 0 ? (
+      {filteredGames.length === 0 ? (
         <EmptyState tab={activeTab} />
       ) : (
         <>
           <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>
-            {activeTab === 'Upcoming' ? 'COMING UP' : 'PAST GIGS'}
+            {activeTab === 'Upcoming' ? 'COMING UP' : 'PAST GAMES'}
           </Text>
 
           <ScrollView
@@ -142,46 +142,46 @@ export default function SavedScreen() {
             contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
           >
-            {filteredGigs.map((gig) => (
+            {filteredGames.map((game) => (
               <TouchableOpacity
-                key={gig.id}
-                onPress={() => router.push(`/gig/${gig.id}`)}
+                key={game.id}
+                onPress={() => router.push(`/game/${game.id}`)}
                 style={{ backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: colors.borderStrong }}
               >
-                <View style={{ height: 160, backgroundColor: getGigImageColor(gig), alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ height: 160, backgroundColor: getGameImageColor(game), alignItems: 'center', justifyContent: 'center' }}>
                   <View style={{ position: 'absolute', top: 10, left: 10 }}>
-                    <BadgePill gig={gig} />
+                    <BadgePill game={game} />
                   </View>
                   <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: '#444' }}>
-                    <Text style={{ color: '#ccc', fontSize: 10 }}>{gig.genre}</Text>
+                    <Text style={{ color: '#ccc', fontSize: 10 }}>{game.sport}</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => unsave(gig.id)}
+                    onPress={() => unsave(game.id)}
                     style={{ position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, padding: 6, borderWidth: 0.5, borderColor: '#444' }}
                   >
                     <Ionicons name="heart" size={16} color={colors.accent} />
                   </TouchableOpacity>
                   <View style={{ position: 'absolute', bottom: 0, left: 0, right: 48, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                    <Text style={{ fontSize: 15, fontWeight: '500', color: '#fff' }}>{gig.band}</Text>
-                    <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(gig)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '500', color: '#fff' }}>{game.title}</Text>
+                    <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(game)}</Text>
                   </View>
                 </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderTopWidth: 0.5, borderTopColor: colors.border }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{formatGigDate(gig)}</Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{formatGameDate(game)}</Text>
                     <Text style={{ color: '#444' }}>·</Text>
                     <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{gig.doorsTime}</Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{game.startTime}</Text>
                     <Text style={{ color: '#444' }}>·</Text>
-                    <Text style={{ fontSize: 11, color: colors.accent }}>{gig.price}</Text>
+                    <Text style={{ fontSize: 11, color: colors.accent }}>{game.price}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {SAVED_META[gig.id] && (
-                      <Text style={{ fontSize: 11, color: colors.textMuted }}>Saved {SAVED_META[gig.id].savedAt}</Text>
+                    {SAVED_META[game.id] && (
+                      <Text style={{ fontSize: 11, color: colors.textMuted }}>Saved {SAVED_META[game.id].savedAt}</Text>
                     )}
-                    <TasteMatch score={getTasteMatch(gig.id)} compact />
+                    <SkillMatch score={getSkillMatch(game.id)} compact />
                   </View>
                 </View>
               </TouchableOpacity>
