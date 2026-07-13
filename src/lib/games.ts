@@ -21,7 +21,7 @@ function applyFilters(games: Game[], filters?: GameFilters): Game[] {
     if (filters.ids && !filters.ids.includes(game.id)) return false
     if (filters.area && filters.area !== 'All areas' && game.venue.area !== filters.area) return false
     if (filters.sport && filters.sport !== 'All sports' && game.sport !== filters.sport) return false
-    if (filters.skillLevel && game.skillLevel !== filters.skillLevel) return false
+    if (filters.difficulty && game.difficulty !== filters.difficulty) return false
     if (filters.status && game.status !== filters.status) return false
     if (filters.featured && !game.featured) return false
     return true

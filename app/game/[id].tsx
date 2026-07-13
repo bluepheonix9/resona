@@ -4,8 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
 import { GameHero } from '../../src/components/GameHero'
-import { SkillMatch } from '../../src/components/SkillMatch'
-import { getSkillMatch } from '../../src/lib/skillMatch'
+import { Difficulty } from '../../src/components/Difficulty'
 import { formatGameDateLong, formatVenueLabel, getGameById } from '../../src/lib/games'
 import type { GameStatus } from '../../src/types/game'
 
@@ -71,8 +70,6 @@ export default function GameDetailScreen() {
     )
   }
 
-  const skillMatch = getSkillMatch(game.id)
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="light-content" />
@@ -121,14 +118,13 @@ export default function GameDetailScreen() {
         </View>
 
         <View style={{ padding: 16, gap: 20 }}>
-          <SkillMatch score={skillMatch} />
+          <Difficulty level={game.difficulty} />
 
           <View style={{ gap: 14 }}>
             <DetailRow icon="calendar-outline" label="Date" value={formatGameDateLong(game)} />
             <DetailRow icon="time-outline" label="Start time" value={game.startTime} />
             <DetailRow icon="pricetag-outline" label="Entry" value={game.price} />
             <DetailRow icon="football-outline" label="Sport" value={game.sport} />
-            <DetailRow icon="bar-chart-outline" label="Skill level" value={game.skillLevel} />
             <DetailRow icon="people-outline" label="Spots" value={`${game.spotsLeft} of ${game.spots} spots left`} />
             <DetailRow icon="location-outline" label="Venue" value={formatVenueLabel(game)} />
           </View>

@@ -1,5 +1,7 @@
 export type GameStatus = 'live' | 'upcoming' | 'open'
 
+export type Difficulty = 'beginner' | 'intermediate' | 'advanced'
+
 export type Venue = {
   name: string
   area: string
@@ -11,7 +13,7 @@ export type Game = {
   id: string
   title: string
   sport: string
-  skillLevel: string
+  difficulty: Difficulty
   tags: string[]
   venue: Venue
   startsAt: string
@@ -28,7 +30,7 @@ export type Game = {
 export type GameFilters = {
   area?: string
   sport?: string
-  skillLevel?: string
+  difficulty?: Difficulty
   status?: GameStatus
   featured?: boolean
   ids?: string[]

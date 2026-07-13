@@ -3,8 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-nativ
 import { router } from 'expo-router'
 import { colors } from '../../src/theme'
 import { Ionicons } from '@expo/vector-icons'
-import { SkillMatch } from '../../src/components/SkillMatch'
-import { getSkillMatch } from '../../src/lib/skillMatch'
+import { Difficulty } from '../../src/components/Difficulty'
 import {
   formatGameDate,
   formatVenueLabel,
@@ -181,7 +180,7 @@ export default function SavedScreen() {
                     {SAVED_META[game.id] && (
                       <Text style={{ fontSize: 11, color: colors.textMuted }}>Saved {SAVED_META[game.id].savedAt}</Text>
                     )}
-                    <SkillMatch score={getSkillMatch(game.id)} compact />
+                    <Difficulty level={game.difficulty} compact />
                   </View>
                 </View>
               </TouchableOpacity>
