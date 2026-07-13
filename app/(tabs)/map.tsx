@@ -4,8 +4,7 @@ import { router } from 'expo-router'
 import MapView, { Marker } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
-import { SkillMatch } from '../../src/components/SkillMatch'
-import { getSkillMatch } from '../../src/lib/skillMatch'
+import { Difficulty } from '../../src/components/Difficulty'
 import { formatVenueLabel, getGameImageColor, getGamesForMap } from '../../src/lib/games'
 import type { Game, GameStatus } from '../../src/types/game'
 
@@ -207,7 +206,7 @@ export default function MapScreen() {
               <Text style={{ fontSize: 11, color: colors.accent }}>{selectedGame.price}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <SkillMatch score={getSkillMatch(selectedGame.id)} compact />
+              <Difficulty level={selectedGame.difficulty} compact />
               <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </View>
           </View>

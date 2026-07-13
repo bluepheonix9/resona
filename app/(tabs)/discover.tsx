@@ -3,8 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StatusBar, TextInput } from '
 import { router } from 'expo-router'
 import { colors } from '../../src/theme'
 import { Ionicons } from '@expo/vector-icons'
-import { SkillMatch } from '../../src/components/SkillMatch'
-import { getSkillMatch } from '../../src/lib/skillMatch'
+import { Difficulty } from '../../src/components/Difficulty'
 import {
   getBrowseSports,
   getBrowseTags,
@@ -23,8 +22,6 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function FeaturedCard({ game }: { game: Game }) {
-  const skillMatch = getSkillMatch(game.id)
-
   return (
     <TouchableOpacity
       onPress={() => router.push(`/game/${game.id}`)}
@@ -40,7 +37,7 @@ function FeaturedCard({ game }: { game: Game }) {
     >
       <View style={{ height: 110, backgroundColor: getGameImageColor(game), justifyContent: 'flex-end', padding: 10 }}>
         <View style={{ position: 'absolute', top: 8, right: 8 }}>
-          <SkillMatch score={skillMatch} compact />
+          <Difficulty level={game.difficulty} compact />
         </View>
         <Text style={{ fontSize: 14, fontWeight: '500', color: '#fff' }}>{game.title}</Text>
         <Text style={{ fontSize: 10, color: '#aaa' }}>{game.venue.name}</Text>

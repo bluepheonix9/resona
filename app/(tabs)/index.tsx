@@ -2,9 +2,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React from 'react'
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
-import { SkillMatch } from '../../src/components/SkillMatch'
+import { Difficulty } from '../../src/components/Difficulty'
 import { formatVenueLabel, getGameImageColor, getGames } from '../../src/lib/games'
-import { getSkillMatch } from '../../src/lib/skillMatch'
 import { colors } from '../../src/theme'
 import type { GameStatus } from '../../src/types/game'
 
@@ -124,7 +123,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={{ fontSize: 11, color: lowSpots ? WARNING : colors.textMuted, fontWeight: lowSpots ? '600' : '400' }}>{game.spotsLeft} spots left</Text>
-                  <SkillMatch score={getSkillMatch(game.id)} compact />
+                  <Difficulty level={game.difficulty} compact />
                 </View>
               </View>
             </TouchableOpacity>
