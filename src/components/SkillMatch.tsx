@@ -1,14 +1,14 @@
 import { View, Text } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../theme'
-import { getTasteMatchLabel } from '../lib/tasteMatch'
+import { getSkillMatchLabel } from '../lib/skillMatch'
 
-type TasteMatchProps = {
+type SkillMatchProps = {
   score: number
   compact?: boolean
 }
 
-export function TasteMatch({ score, compact = false }: TasteMatchProps) {
+export function SkillMatch({ score, compact = false }: SkillMatchProps) {
   const isHigh = score >= 80
   const isMid = score >= 70
 
@@ -53,10 +53,8 @@ export function TasteMatch({ score, compact = false }: TasteMatchProps) {
     >
       <Ionicons name="sparkles" size={12} color={accent} />
       <View>
-        <Text style={{ fontSize: 11, fontWeight: '600', color: accent }}>{score}% taste match</Text>
-        {!compact && (
-          <Text style={{ fontSize: 9, color: colors.textMuted }}>{getTasteMatchLabel(score)}</Text>
-        )}
+        <Text style={{ fontSize: 11, fontWeight: '600', color: accent }}>{score}% skill match</Text>
+        <Text style={{ fontSize: 9, color: colors.textMuted }}>{getSkillMatchLabel(score)}</Text>
       </View>
     </View>
   )

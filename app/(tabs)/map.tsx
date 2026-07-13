@@ -4,50 +4,50 @@ import { router } from 'expo-router'
 import MapView, { Marker } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
-import { TasteMatch } from '../../src/components/TasteMatch'
-import { getTasteMatch } from '../../src/lib/tasteMatch'
-import { formatVenueLabel, getGigImageColor, getGigsForMap } from '../../src/lib/gigs'
-import type { Gig, GigStatus } from '../../src/types/gig'
+import { SkillMatch } from '../../src/components/SkillMatch'
+import { getSkillMatch } from '../../src/lib/skillMatch'
+import { formatVenueLabel, getGameImageColor, getGamesForMap } from '../../src/lib/games'
+import type { Game, GameStatus } from '../../src/types/game'
 
 const SYDNEY_REGION = {
   latitude: -33.8885,
   longitude: 151.195,
-  latitudeDelta: 0.06,
-  longitudeDelta: 0.06,
+  latitudeDelta: 0.16,
+  longitudeDelta: 0.16,
 }
 
-const MAP_GIGS = getGigsForMap()
+const MAP_GAMES = getGamesForMap()
 
-function markerColor(status: GigStatus) {
+function markerColor(status: GameStatus) {
   if (status === 'live') return colors.live
-  if (status === 'tonight') return colors.accent
+  if (status === 'upcoming') return colors.accent
   return colors.textSecondary
 }
 
-function BadgePill({ status }: { status: GigStatus }) {
+function BadgePill({ status }: { status: GameStatus }) {
   if (status === 'live') {
     return (
       <View style={{ backgroundColor: colors.live, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>● Live now</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>● In progress</Text>
       </View>
     )
   }
-  if (status === 'tonight') {
+  if (status === 'upcoming') {
     return (
       <View style={{ backgroundColor: colors.accent, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
-        <Text style={{ color: colors.accentDark, fontSize: 10, fontWeight: '600' }}>Tonight</Text>
+        <Text style={{ color: colors.accentDark, fontSize: 10, fontWeight: '600' }}>Upcoming</Text>
       </View>
     )
   }
   return (
     <View style={{ backgroundColor: 'transparent', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: colors.accent }}>
-      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '600' }}>Free entry</Text>
+      <Text style={{ color: colors.accent, fontSize: 10, fontWeight: '600' }}>Open to join</Text>
     </View>
   )
 }
 
-function GigPin({ gig, selected }: { gig: Gig; selected: boolean }) {
-  const pinColor = markerColor(gig.status)
+function GamePin({ game, selected }: { game: Game; selected: boolean }) {
+  const pinColor = markerColor(game.status)
   return (
     <View style={{ alignItems: 'center' }}>
       <View
@@ -62,7 +62,7 @@ function GigPin({ gig, selected }: { gig: Gig; selected: boolean }) {
           alignItems: 'center',
         }}
       >
-        <Ionicons name="musical-notes" size={14} color={selected ? colors.accentDark : pinColor} />
+        <Ionicons name="basketball" size={14} color={selected ? colors.accentDark : pinColor} />
       </View>
       <View style={{ width: 2, height: 8, backgroundColor: pinColor, marginTop: -1 }} />
       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: pinColor, marginTop: -1 }} />
@@ -72,18 +72,18 @@ function GigPin({ gig, selected }: { gig: Gig; selected: boolean }) {
 
 export default function MapScreen() {
   const mapRef = React.useRef<MapView>(null)
-  const [selectedId, setSelectedId] = React.useState<string | null>(MAP_GIGS[0]?.id ?? null)
+  const [selectedId, setSelectedId] = React.useState<string | null>(MAP_GAMES[0]?.id ?? null)
 
-  const selectedGig = MAP_GIGS.find((g) => g.id === selectedId)
+  const selectedGame = MAP_GAMES.find((g) => g.id === selectedId)
 
-  function selectGig(gig: Gig) {
-    setSelectedId(gig.id)
+  function selectGame(game: Game) {
+    setSelectedId(game.id)
     mapRef.current?.animateToRegion(
       {
-        latitude: gig.venue.lat,
-        longitude: gig.venue.lng,
-        latitudeDelta: 0.025,
-        longitudeDelta: 0.025,
+        latitude: game.venue.lat,
+        longitude: game.venue.lng,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
       },
       350,
     )
@@ -101,14 +101,14 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         userInterfaceStyle="dark"
       >
-        {MAP_GIGS.map((gig) => (
+        {MAP_GAMES.map((game) => (
           <Marker
-            key={gig.id}
-            coordinate={{ latitude: gig.venue.lat, longitude: gig.venue.lng }}
-            onPress={() => selectGig(gig)}
+            key={game.id}
+            coordinate={{ latitude: game.venue.lat, longitude: game.venue.lng }}
+            onPress={() => selectGame(game)}
             tracksViewChanges={Platform.OS === 'android'}
           >
-            <GigPin gig={gig} selected={selectedId === gig.id} />
+            <GamePin game={game} selected={selectedId === game.id} />
           </Marker>
         ))}
       </MapView>
@@ -135,7 +135,7 @@ export default function MapScreen() {
             map<Text style={{ color: colors.accent }}>.</Text>
           </Text>
           <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-            {MAP_GIGS.length} gigs nearby
+            {MAP_GAMES.length} games nearby
           </Text>
         </View>
         <TouchableOpacity
@@ -152,10 +152,10 @@ export default function MapScreen() {
         </TouchableOpacity>
       </View>
 
-      {selectedGig && (
+      {selectedGame && (
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => router.push(`/gig/${selectedGig.id}`)}
+          onPress={() => router.push(`/game/${selectedGame.id}`)}
           style={{
             position: 'absolute',
             bottom: 16,
@@ -168,9 +168,9 @@ export default function MapScreen() {
             borderColor: colors.borderStrong,
           }}
         >
-          <View style={{ height: 100, backgroundColor: getGigImageColor(selectedGig), justifyContent: 'flex-end', padding: 12 }}>
+          <View style={{ height: 100, backgroundColor: getGameImageColor(selectedGame), justifyContent: 'flex-end', padding: 12 }}>
             <View style={{ position: 'absolute', top: 10, left: 10 }}>
-              <BadgePill status={selectedGig.status} />
+              <BadgePill status={selectedGame.status} />
             </View>
             <View
               style={{
@@ -185,10 +185,10 @@ export default function MapScreen() {
                 borderColor: '#444',
               }}
             >
-              <Text style={{ color: '#ccc', fontSize: 10 }}>{selectedGig.genre}</Text>
+              <Text style={{ color: '#ccc', fontSize: 10 }}>{selectedGame.sport}</Text>
             </View>
-            <Text style={{ fontSize: 16, fontWeight: '500', color: '#fff' }}>{selectedGig.band}</Text>
-            <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(selectedGig)}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '500', color: '#fff' }}>{selectedGame.title}</Text>
+            <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(selectedGame)}</Text>
           </View>
           <View
             style={{
@@ -202,12 +202,12 @@ export default function MapScreen() {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
-              <Text style={{ fontSize: 11, color: colors.textSecondary }}>{selectedGig.doorsTime}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>{selectedGame.startTime}</Text>
               <Text style={{ color: '#444' }}>·</Text>
-              <Text style={{ fontSize: 11, color: colors.accent }}>{selectedGig.price}</Text>
+              <Text style={{ fontSize: 11, color: colors.accent }}>{selectedGame.price}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TasteMatch score={getTasteMatch(selectedGig.id)} compact />
+              <SkillMatch score={getSkillMatch(selectedGame.id)} compact />
               <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </View>
           </View>
