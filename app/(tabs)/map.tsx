@@ -1,14 +1,15 @@
-import React from 'react'
-import { View, Text, TouchableOpacity, StatusBar, Platform } from 'react-native'
-import { router } from 'expo-router'
-import MapView, { Marker } from 'react-native-maps'
 import { Ionicons } from '@expo/vector-icons'
-import { colors } from '../../src/theme'
+import { router } from 'expo-router'
+import React from 'react'
+import { Platform, StatusBar, Text, TouchableOpacity, View } from 'react-native'
+import MapView, { Marker, type Region } from 'react-native-maps'
+import Supercluster from 'supercluster'
 import { Difficulty } from '../../src/components/Difficulty'
-import { formatVenueLabel, getGameImageColor, getGamesForMap } from '../../src/lib/games'
+import { formatVenueLabel, getGameById, getGameImageColor, getGamesForMap } from '../../src/lib/games'
+import { colors } from '../../src/theme'
 import type { Game, GameStatus } from '../../src/types/game'
 
-const SYDNEY_REGION = {
+const SYDNEY_REGION: Region = {
   latitude: -33.8885,
   longitude: 151.195,
   latitudeDelta: 0.16,
@@ -17,10 +18,25 @@ const SYDNEY_REGION = {
 
 const MAP_GAMES = getGamesForMap()
 
+type PointProps = { gameId: string }
+
 function markerColor(status: GameStatus) {
   if (status === 'live') return colors.live
   if (status === 'upcoming') return colors.accent
   return colors.textSecondary
+}
+
+function regionToBBox(r: Region): [number, number, number, number] {
+  return [
+    r.longitude - r.longitudeDelta / 2,
+    r.latitude - r.latitudeDelta / 2,
+    r.longitude + r.longitudeDelta / 2,
+    r.latitude + r.latitudeDelta / 2,
+  ]
+}
+
+function regionToZoom(r: Region): number {
+  return Math.round(Math.log2(360 / Math.max(r.longitudeDelta, 0.0001)))
 }
 
 function BadgePill({ status }: { status: GameStatus }) {
@@ -69,21 +85,71 @@ function GamePin({ game, selected }: { game: Game; selected: boolean }) {
   )
 }
 
+function ClusterBubble({ count }: { count: number }) {
+  const size = count < 10 ? 40 : count < 50 ? 48 : 56
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: 'rgba(200,241,53,0.18)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View
+          style={{
+            width: size - 12,
+            height: size - 12,
+            borderRadius: (size - 12) / 2,
+            backgroundColor: colors.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: colors.accentDark, fontSize: 14, fontWeight: '700' }}>{count}</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 export default function MapScreen() {
   const mapRef = React.useRef<MapView>(null)
+  const [region, setRegion] = React.useState<Region>(SYDNEY_REGION)
   const [selectedId, setSelectedId] = React.useState<string | null>(MAP_GAMES[0]?.id ?? null)
 
-  const selectedGame = MAP_GAMES.find((g) => g.id === selectedId)
+  const selectedGame = selectedId ? getGameById(selectedId) : undefined
+
+  const index = React.useMemo(() => {
+    const points: Supercluster.PointFeature<PointProps>[] = MAP_GAMES.map((game) => ({
+      type: 'Feature',
+      properties: { gameId: game.id },
+      geometry: { type: 'Point', coordinates: [game.venue.lng, game.venue.lat] },
+    }))
+    return new Supercluster<PointProps>({ radius: 60, maxZoom: 16 }).load(points)
+  }, [])
+
+  const clusters = React.useMemo(
+    () => index.getClusters(regionToBBox(region), regionToZoom(region)),
+    [index, region],
+  )
 
   function selectGame(game: Game) {
     setSelectedId(game.id)
     mapRef.current?.animateToRegion(
-      {
-        latitude: game.venue.lat,
-        longitude: game.venue.lng,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      },
+      { latitude: game.venue.lat, longitude: game.venue.lng, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+      350,
+    )
+  }
+
+  function expandCluster(clusterId: number, lat: number, lng: number) {
+    const zoom = Math.min(index.getClusterExpansionZoom(clusterId), 16)
+    const delta = 360 / Math.pow(2, zoom)
+    mapRef.current?.animateToRegion(
+      { latitude: lat, longitude: lng, latitudeDelta: delta, longitudeDelta: delta },
       350,
     )
   }
@@ -96,20 +162,41 @@ export default function MapScreen() {
         ref={mapRef}
         style={{ flex: 1 }}
         initialRegion={SYDNEY_REGION}
+        onRegionChangeComplete={setRegion}
         showsUserLocation
         showsMyLocationButton={false}
         userInterfaceStyle="dark"
       >
-        {MAP_GAMES.map((game) => (
-          <Marker
-            key={game.id}
-            coordinate={{ latitude: game.venue.lat, longitude: game.venue.lng }}
-            onPress={() => selectGame(game)}
-            tracksViewChanges={Platform.OS === 'android'}
-          >
-            <GamePin game={game} selected={selectedId === game.id} />
-          </Marker>
-        ))}
+        {clusters.map((feature) => {
+          const [lng, lat] = feature.geometry.coordinates
+          const props = feature.properties as Supercluster.ClusterProperties & PointProps
+
+          if (props.cluster) {
+            return (
+              <Marker
+                key={`cluster-${props.cluster_id}`}
+                coordinate={{ latitude: lat, longitude: lng }}
+                onPress={() => expandCluster(props.cluster_id, lat, lng)}
+                tracksViewChanges={Platform.OS === 'android'}
+              >
+                <ClusterBubble count={props.point_count} />
+              </Marker>
+            )
+          }
+
+          const game = getGameById(props.gameId)
+          if (!game) return null
+          return (
+            <Marker
+              key={`game-${game.id}`}
+              coordinate={{ latitude: lat, longitude: lng }}
+              onPress={() => selectGame(game)}
+              tracksViewChanges={Platform.OS === 'android'}
+            >
+              <GamePin game={game} selected={selectedId === game.id} />
+            </Marker>
+          )
+        })}
       </MapView>
 
       <View

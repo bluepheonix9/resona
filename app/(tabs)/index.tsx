@@ -4,7 +4,8 @@ import React from 'react'
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import { Difficulty } from '../../src/components/Difficulty'
 import { DEFAULT_FILTERS, FilterSheet, countActiveFilters, type HomeFilters } from '../../src/components/FilterSheet'
-import { formatVenueLabel, getGameImageColor, getGames } from '../../src/lib/games'
+import { GameMiniCard } from '../../src/components/GameMiniCard'
+import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getGames, getNearbyGames } from '../../src/lib/games'
 import { effectiveSpotsLeft, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
 import { colors } from '../../src/theme'
 import type { Game, GameFilters, GameStatus, TimeWindow } from '../../src/types/game'
@@ -100,6 +101,28 @@ function GameCard({ game }: { game: Game }) {
   )
 }
 
+function CuratedRow({ title, games }: { title: string; games: Game[] }) {
+  if (games.length === 0) return null
+  return (
+    <View style={{ marginBottom: 20 }}>
+      <Text style={{ fontSize: 11, color: colors.textMuted, letterSpacing: 0.8, marginBottom: 10, paddingHorizontal: 16 }}>{title}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}>
+        {games.map((game) => <GameMiniCard key={game.id} game={game} />)}
+      </ScrollView>
+    </View>
+  )
+}
+
+function CuratedSections() {
+  return (
+    <View style={{ paddingTop: 4 }}>
+      <CuratedRow title="NEAR YOU" games={getNearbyGames()} />
+      <CuratedRow title="FEATURED THIS WEEKEND" games={getFeaturedWeekendGames()} />
+      <CuratedRow title="FREE GAMES" games={getFreeGames()} />
+    </View>
+  )
+}
+
 function EmptyFeed({ label }: { label: string }) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 64, paddingHorizontal: 32 }}>
@@ -134,8 +157,10 @@ export default function HomeScreen() {
         <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
           pickup<Text style={{ color: colors.accent }}>.</Text>
         </Text>
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <Ionicons name="search-outline" size={22} color={colors.textSecondary} />
+        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => router.push('/search')} hitSlop={8}>
+            <Ionicons name="search-outline" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
           <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
         </View>
       </View>
@@ -182,16 +207,19 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Section label */}
-      <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>{tab.section}</Text>
+      {/* Feed (curated rows on the default Today view, then the filtered list) */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        {activeTab === 'today' && activeCount === 0 && <CuratedSections />}
 
-      {/* Game feed */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        {games.length === 0 ? (
-          <EmptyFeed label={tab.label} />
-        ) : (
-          games.map((game) => <GameCard key={game.id} game={game} />)
-        )}
+        <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>{tab.section}</Text>
+
+        <View style={{ paddingHorizontal: 16, gap: 12 }}>
+          {games.length === 0 ? (
+            <EmptyFeed label={tab.label} />
+          ) : (
+            games.map((game) => <GameCard key={game.id} game={game} />)
+          )}
+        </View>
       </ScrollView>
 
       <FilterSheet
