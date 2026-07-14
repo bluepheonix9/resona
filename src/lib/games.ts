@@ -142,3 +142,58 @@ export function formatGameDateLong(game: Game): string {
 export function isGameUpcoming(game: Game, now = new Date()): boolean {
   return new Date(game.startsAt) >= now
 }
+
+// True when the game's day is before today (used to exclude past games from
+// the curated "browse" rows on Home).
+export function isPastGame(game: Game, now = new Date()): boolean {
+  return startOfDay(new Date(game.startsAt)).getTime() < startOfDay(now).getTime()
+}
+
+// ---- Curated sections (Home) ----
+
+// Approximate "current location" for the demo (Bondi Junction, Sydney).
+const USER_LOCATION = { lat: -33.8908, lng: 151.2497 }
+
+// Cheap planar distance — good enough to rank nearby venues within a city.
+function distanceTo(game: Game): number {
+  const dLat = game.venue.lat - USER_LOCATION.lat
+  const dLng = game.venue.lng - USER_LOCATION.lng
+  return Math.sqrt(dLat * dLat + dLng * dLng)
+}
+
+// Non-past games, nearest first.
+export function getNearbyGames(limit = 6): Game[] {
+  return MOCK_GAMES.filter((game) => !isPastGame(game))
+    .sort((a, b) => distanceTo(a) - distanceTo(b))
+    .slice(0, limit)
+}
+
+// Featured games happening on the coming weekend (falls back to all featured
+// upcoming games if none land on a weekend).
+export function getFeaturedWeekendGames(): Game[] {
+  const featured = MOCK_GAMES.filter((game) => game.featured && !isPastGame(game))
+  const onWeekend = featured.filter((game) => {
+    const day = new Date(game.startsAt).getDay()
+    return day === 0 || day === 6
+  })
+  return onWeekend.length > 0 ? onWeekend : featured
+}
+
+// Non-past free games.
+export function getFreeGames(): Game[] {
+  return MOCK_GAMES.filter((game) => isFree(game) && !isPastGame(game))
+}
+
+// Full-text-ish search over title, sport, venue name and area.
+export function searchGames(query: string): Game[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  return MOCK_GAMES.filter((game) => {
+    return (
+      game.title.toLowerCase().includes(q) ||
+      game.sport.toLowerCase().includes(q) ||
+      game.venue.name.toLowerCase().includes(q) ||
+      game.venue.area.toLowerCase().includes(q)
+    )
+  })
+}
