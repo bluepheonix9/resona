@@ -1,11 +1,13 @@
 import React from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StatusBar, Alert } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
 import { GameHero } from '../../src/components/GameHero'
 import { Difficulty } from '../../src/components/Difficulty'
+import { JoinSheet } from '../../src/components/JoinSheet'
 import { formatGameDateLong, formatVenueLabel, getGameById } from '../../src/lib/games'
+import { effectiveSpotsLeft, joinGame, leaveGame, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
 import type { GameStatus } from '../../src/types/game'
 
 function BadgePill({ status }: { status: GameStatus }) {
@@ -59,6 +61,10 @@ export default function GameDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const game = id ? getGameById(id) : undefined
 
+  const saved = useIsSaved(id ?? '')
+  const joined = useIsJoined(id ?? '')
+  const [sheetVisible, setSheetVisible] = React.useState(false)
+
   if (!game) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
@@ -69,6 +75,8 @@ export default function GameDetailScreen() {
       </View>
     )
   }
+
+  const spotsLeft = effectiveSpotsLeft(game, joined)
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -92,6 +100,7 @@ export default function GameDetailScreen() {
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
+              onPress={() => toggleSaved(game.id)}
               style={{
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 borderRadius: 20,
@@ -100,7 +109,7 @@ export default function GameDetailScreen() {
                 borderColor: 'rgba(255,255,255,0.15)',
               }}
             >
-              <Ionicons name="heart-outline" size={20} color="#fff" />
+              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={20} color={saved ? colors.accent : '#fff'} />
             </TouchableOpacity>
           </View>
           <View style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
@@ -125,7 +134,7 @@ export default function GameDetailScreen() {
             <DetailRow icon="time-outline" label="Start time" value={game.startTime} />
             <DetailRow icon="pricetag-outline" label="Entry" value={game.price} />
             <DetailRow icon="football-outline" label="Sport" value={game.sport} />
-            <DetailRow icon="people-outline" label="Spots" value={`${game.spotsLeft} of ${game.spots} spots left`} />
+            <DetailRow icon="people-outline" label="Spots" value={`${spotsLeft} of ${game.spots} spots left`} />
             <DetailRow icon="location-outline" label="Venue" value={formatVenueLabel(game)} />
           </View>
 
@@ -161,30 +170,58 @@ export default function GameDetailScreen() {
               borderRadius: 12,
               padding: 14,
               borderWidth: 0.5,
-              borderColor: colors.borderStrong,
+              borderColor: joined ? colors.accent : colors.borderStrong,
             }}
           >
-            <Text style={{ fontSize: 18 }}>👥</Text>
+            <Text style={{ fontSize: 18 }}>{joined ? '✅' : '👥'}</Text>
             <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '500' }}>{game.spotsLeft}</Text> spots left
+              {joined ? (
+                <><Text style={{ color: colors.textPrimary, fontWeight: '500' }}>You're in.</Text> {spotsLeft} spots left</>
+              ) : (
+                <><Text style={{ color: colors.textPrimary, fontWeight: '500' }}>{spotsLeft}</Text> spots left</>
+              )}
             </Text>
           </View>
 
-          <TouchableOpacity
-            onPress={() => Alert.alert('Coming soon', 'Joining feature coming soon!')}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              backgroundColor: colors.accent,
-              borderRadius: 12,
-              paddingVertical: 14,
-            }}
-          >
-            <Ionicons name="add-circle-outline" size={18} color={colors.accentDark} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentDark }}>Join this game</Text>
-          </TouchableOpacity>
+          {joined ? (
+            <View style={{ gap: 10 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  backgroundColor: colors.surface,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  borderWidth: 1,
+                  borderColor: colors.accent,
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={18} color={colors.accent} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>You're in</Text>
+              </View>
+              <TouchableOpacity onPress={() => leaveGame(game.id)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                <Text style={{ fontSize: 13, color: colors.textMuted }}>Leave game</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setSheetVisible(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                backgroundColor: colors.accent,
+                borderRadius: 12,
+                paddingVertical: 14,
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={colors.accentDark} />
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentDark }}>Join this game</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/map')}
@@ -205,6 +242,14 @@ export default function GameDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <JoinSheet
+        game={game}
+        visible={sheetVisible}
+        spotsLeft={spotsLeft}
+        onClose={() => setSheetVisible(false)}
+        onConfirm={() => joinGame(game.id)}
+      />
     </View>
   )
 }
