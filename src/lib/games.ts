@@ -1,5 +1,25 @@
 import { MOCK_GAMES } from '../data/mockGames'
-import type { Game, GameFilters } from '../types/game'
+import type { Game, GameFilters, TimeWindow } from '../types/game'
+
+function startOfDay(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Does a game fall inside the given time window, relative to `now`?
+// Non-overlapping by calendar day:
+// - today:    same calendar day as now
+// - upcoming: any day after today
+// - past:     any day before today
+function matchesWhen(game: Game, when: TimeWindow, now = new Date()): boolean {
+  const startDay = startOfDay(new Date(game.startsAt)).getTime()
+  const today = startOfDay(now).getTime()
+
+  if (when === 'today') return startDay === today
+  if (when === 'upcoming') return startDay > today
+  return startDay < today
+}
 
 const BROWSE_SPORTS = [
   'Basketball',
@@ -12,7 +32,11 @@ const BROWSE_SPORTS = [
   'Running',
 ]
 
-const BROWSE_TAGS = ['Outdoor', 'Casual', 'Social', 'Beach', 'Court', 'Beginner friendly']
+const BROWSE_TAGS = ['Outdoor', 'Indoor', 'Social', 'Casual', 'Beach', 'Court']
+
+function isFree(game: Game): boolean {
+  return game.price.trim().toLowerCase() === 'free'
+}
 
 function applyFilters(games: Game[], filters?: GameFilters): Game[] {
   if (!filters) return games
@@ -24,6 +48,10 @@ function applyFilters(games: Game[], filters?: GameFilters): Game[] {
     if (filters.difficulty && game.difficulty !== filters.difficulty) return false
     if (filters.status && game.status !== filters.status) return false
     if (filters.featured && !game.featured) return false
+    if (filters.when && !matchesWhen(game, filters.when)) return false
+    if (filters.tag && !game.tags.includes(filters.tag)) return false
+    if (filters.price === 'free' && !isFree(game)) return false
+    if (filters.price === 'paid' && isFree(game)) return false
     return true
   })
 }
@@ -54,6 +82,16 @@ export function getBrowseSports() {
 
 export function getBrowseTags() {
   return BROWSE_TAGS
+}
+
+// Distinct sports/areas actually present in the data — used to build the
+// Filters sheet so no filter option ever returns zero games.
+export function getSports(): string[] {
+  return Array.from(new Set(MOCK_GAMES.map((game) => game.sport)))
+}
+
+export function getAreas(): string[] {
+  return Array.from(new Set(MOCK_GAMES.map((game) => game.venue.area)))
 }
 
 export function getVenues() {

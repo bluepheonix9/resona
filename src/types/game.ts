@@ -27,6 +27,10 @@ export type Game = {
   featured?: boolean
 }
 
+export type TimeWindow = 'today' | 'upcoming' | 'past'
+
+export type PriceFilter = 'free' | 'paid'
+
 export type GameFilters = {
   area?: string
   sport?: string
@@ -34,4 +38,7 @@ export type GameFilters = {
   status?: GameStatus
   featured?: boolean
   ids?: string[]
+  when?: TimeWindow
+  tag?: string
+  price?: PriceFilter
 }

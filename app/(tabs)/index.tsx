@@ -3,14 +3,31 @@ import { router } from 'expo-router'
 import React from 'react'
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import { Difficulty } from '../../src/components/Difficulty'
+import { DEFAULT_FILTERS, FilterSheet, countActiveFilters, type HomeFilters } from '../../src/components/FilterSheet'
 import { formatVenueLabel, getGameImageColor, getGames } from '../../src/lib/games'
+import { effectiveSpotsLeft, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
 import { colors } from '../../src/theme'
-import type { GameStatus } from '../../src/types/game'
+import type { Game, GameFilters, GameStatus, TimeWindow } from '../../src/types/game'
 
-const TABS = ['Today', 'This week', 'Weekend']
-const FILTERS = ['All sports', 'Basketball', 'Soccer', 'Tennis', 'Volleyball', 'Touch Footy']
+const TABS: { label: string; when: TimeWindow; section: string }[] = [
+  { label: 'Today', when: 'today', section: 'HAPPENING TODAY' },
+  { label: 'Upcoming', when: 'upcoming', section: 'COMING UP' },
+  { label: 'Past events', when: 'past', section: 'PAST GAMES' },
+]
 
 const WARNING = '#FF9500'
+
+// Fold the Home filter state + active time tab into a lib query.
+function toGameFilters(when: TimeWindow, f: HomeFilters): GameFilters {
+  return {
+    when,
+    sport: f.sport === 'All' ? undefined : f.sport,
+    area: f.area === 'All' ? undefined : f.area,
+    tag: f.tag ?? undefined,
+    price: f.price === 'all' ? undefined : f.price,
+    difficulty: f.difficulty === 'all' ? undefined : f.difficulty,
+  }
+}
 
 function BadgePill({ status }: { status: GameStatus }) {
   if (status === 'live') return (
@@ -30,13 +47,82 @@ function BadgePill({ status }: { status: GameStatus }) {
   )
 }
 
+function GameCard({ game }: { game: Game }) {
+  const saved = useIsSaved(game.id)
+  const joined = useIsJoined(game.id)
+  const spotsLeft = effectiveSpotsLeft(game, joined)
+  const lowSpots = spotsLeft <= 3
+
+  return (
+    <TouchableOpacity onPress={() => router.push(`/game/${game.id}`)} style={{ backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: joined ? colors.accent : colors.borderStrong }}>
+      <View style={{ height: 160, backgroundColor: getGameImageColor(game), alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ position: 'absolute', top: 10, left: 10, flexDirection: 'row', gap: 6 }}>
+          <BadgePill status={game.status} />
+          {joined && (
+            <View style={{ backgroundColor: colors.accent, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="checkmark" size={11} color={colors.accentDark} />
+              <Text style={{ color: colors.accentDark, fontSize: 10, fontWeight: '700' }}>You're in</Text>
+            </View>
+          )}
+        </View>
+        <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: '#444' }}>
+          <Text style={{ color: '#ccc', fontSize: 10 }}>{game.sport}</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => toggleSaved(game.id)}
+          hitSlop={8}
+          style={{ position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, padding: 6, borderWidth: 0.5, borderColor: '#444' }}
+        >
+          <Ionicons name={saved ? 'heart' : 'heart-outline'} size={16} color={saved ? colors.accent : '#fff'} />
+        </TouchableOpacity>
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 48, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <Text style={{ fontSize: 15, fontWeight: '500', color: '#fff' }}>{game.title}</Text>
+          <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(game)}</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderTopWidth: 0.5, borderTopColor: colors.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
+          <Text style={{ fontSize: 11, color: colors.textSecondary }}>{game.startTime}</Text>
+          <Text style={{ color: '#444' }}>·</Text>
+          <Text style={{ fontSize: 11, color: colors.accent }}>{game.price}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {joined ? (
+            <Text style={{ fontSize: 11, color: colors.accent, fontWeight: '600' }}>You're in</Text>
+          ) : (
+            <Text style={{ fontSize: 11, color: lowSpots ? WARNING : colors.textMuted, fontWeight: lowSpots ? '600' : '400' }}>{spotsLeft} spots left</Text>
+          )}
+          <Difficulty level={game.difficulty} compact />
+        </View>
+      </View>
+    </TouchableOpacity>
+  )
+}
+
+function EmptyFeed({ label }: { label: string }) {
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 64, paddingHorizontal: 32 }}>
+      <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+        <Ionicons name="calendar-outline" size={24} color={colors.textMuted} />
+      </View>
+      <Text style={{ fontSize: 15, fontWeight: '500', color: colors.textPrimary, marginBottom: 6 }}>No games {label.toLowerCase()}</Text>
+      <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 }}>Try a different time or loosen your filters — new pickup games are added all the time.</Text>
+    </View>
+  )
+}
+
 export default function HomeScreen() {
-  const [activeFilter, setActiveFilter] = React.useState('All sports')
-  const [activeTab, setActiveTab] = React.useState('Today')
+  const [activeTab, setActiveTab] = React.useState<TimeWindow>('today')
+  const [filters, setFilters] = React.useState<HomeFilters>(DEFAULT_FILTERS)
+  const [sheetVisible, setSheetVisible] = React.useState(false)
+
+  const tab = TABS.find((t) => t.when === activeTab) ?? TABS[0]
+  const activeCount = countActiveFilters(filters)
 
   const games = React.useMemo(
-    () => getGames({ sport: activeFilter }),
-    [activeFilter],
+    () => getGames(toGameFilters(activeTab, filters)),
+    [activeTab, filters],
   )
 
   return (
@@ -56,80 +142,68 @@ export default function HomeScreen() {
 
       {/* Time tabs */}
       <View style={{ flexDirection: 'row', paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: colors.border, marginBottom: 10 }}>
-        {TABS.map((tab) => (
+        {TABS.map((t) => (
           <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={{ paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: activeTab === tab ? colors.accent : 'transparent', marginRight: 4 }}
+            key={t.when}
+            onPress={() => setActiveTab(t.when)}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: activeTab === t.when ? colors.accent : 'transparent', marginRight: 4 }}
           >
-            <Text style={{ fontSize: 13, fontWeight: activeTab === tab ? '600' : '400', color: activeTab === tab ? colors.accent : colors.textMuted }}>{tab}</Text>
+            <Text style={{ fontSize: 13, fontWeight: activeTab === t.when ? '600' : '400', color: activeTab === t.when ? colors.accent : colors.textMuted }}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Sport filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 6, paddingHorizontal: 16, alignItems: 'center' }}
-        style={{ flexGrow: 0, marginBottom: 10 }}
-      >
-        {FILTERS.map((f) => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setActiveFilter(f)}
-            style={{
-              backgroundColor: activeFilter === f ? colors.accent : colors.surface,
-              borderRadius: 20,
-              paddingHorizontal: 12,
-              paddingVertical: 5,
-              borderWidth: 0.5,
-              borderColor: activeFilter === f ? colors.accent : colors.borderStrong,
-              marginVertical: 8,
-            }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '500', color: activeFilter === f ? colors.accentDark : colors.textSecondary }}>{f}</Text>
+      {/* Filters bar */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 }}>
+        <TouchableOpacity
+          onPress={() => setSheetVisible(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: activeCount > 0 ? colors.accent : colors.surface,
+            borderRadius: 20,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderWidth: 0.5,
+            borderColor: activeCount > 0 ? colors.accent : colors.borderStrong,
+          }}
+        >
+          <Ionicons name="options-outline" size={16} color={activeCount > 0 ? colors.accentDark : colors.textSecondary} />
+          <Text style={{ fontSize: 13, fontWeight: '600', color: activeCount > 0 ? colors.accentDark : colors.textSecondary }}>
+            {activeCount > 0 ? `Filters · ${activeCount}` : 'Filters'}
+          </Text>
+        </TouchableOpacity>
+
+        {activeCount > 0 && (
+          <TouchableOpacity onPress={() => setFilters(DEFAULT_FILTERS)}>
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>Clear all</Text>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        )}
+      </View>
 
       {/* Section label */}
-      <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>HAPPENING NOW</Text>
+      <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>{tab.section}</Text>
 
       {/* Game feed */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        {games.map((game) => {
-          const lowSpots = game.spotsLeft <= 3
-          return (
-            <TouchableOpacity key={game.id} onPress={() => router.push(`/game/${game.id}`)} style={{ backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: colors.borderStrong }}>
-              <View style={{ height: 160, backgroundColor: getGameImageColor(game), alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ position: 'absolute', top: 10, left: 10 }}>
-                  <BadgePill status={game.status} />
-                </View>
-                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 0.5, borderColor: '#444' }}>
-                  <Text style={{ color: '#ccc', fontSize: 10 }}>{game.sport}</Text>
-                </View>
-                <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)' }}>
-                  <Text style={{ fontSize: 15, fontWeight: '500', color: '#fff' }}>{game.title}</Text>
-                  <Text style={{ fontSize: 11, color: '#aaa' }}>{formatVenueLabel(game)}</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderTopWidth: 0.5, borderTopColor: colors.border }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
-                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>{game.startTime}</Text>
-                  <Text style={{ color: '#444' }}>·</Text>
-                  <Text style={{ fontSize: 11, color: colors.accent }}>{game.price}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ fontSize: 11, color: lowSpots ? WARNING : colors.textMuted, fontWeight: lowSpots ? '600' : '400' }}>{game.spotsLeft} spots left</Text>
-                  <Difficulty level={game.difficulty} compact />
-                </View>
-              </View>
-            </TouchableOpacity>
-          )
-        })}
+        {games.length === 0 ? (
+          <EmptyFeed label={tab.label} />
+        ) : (
+          games.map((game) => <GameCard key={game.id} game={game} />)
+        )}
       </ScrollView>
+
+      <FilterSheet
+        visible={sheetVisible}
+        initial={filters}
+        countFor={(draft) => getGames(toGameFilters(activeTab, draft)).length}
+        onClose={() => setSheetVisible(false)}
+        onApply={(f) => {
+          setFilters(f)
+          setSheetVisible(false)
+        }}
+      />
     </View>
   )
 }

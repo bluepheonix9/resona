@@ -11,18 +11,17 @@ import {
   getGames,
   isGameUpcoming,
 } from '../../src/lib/games'
+import { toggleSaved, useSavedIds } from '../../src/lib/store'
 import type { Game, GameStatus } from '../../src/types/game'
 
 const TABS = ['Upcoming', 'Past']
 
-// Local demo state until auth — maps game id → when it was saved
+// Cosmetic "saved X ago" labels for the seeded games; new saves just omit it.
 const SAVED_META: Record<string, { savedAt: string }> = {
   '2': { savedAt: '2 days ago' },
   '3': { savedAt: 'Yesterday' },
   '1': { savedAt: '1 week ago' },
 }
-
-const INITIAL_SAVED_IDS = Object.keys(SAVED_META)
 
 function BadgePill({ game }: { game: Game }) {
   if (!isGameUpcoming(game)) {
@@ -75,7 +74,7 @@ function EmptyState({ tab }: { tab: string }) {
 
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = React.useState('Upcoming')
-  const [savedIds, setSavedIds] = React.useState(INITIAL_SAVED_IDS)
+  const savedIds = useSavedIds()
 
   const savedGames = getGames({ ids: savedIds })
   const filteredGames = savedGames.filter((game) =>
@@ -84,10 +83,6 @@ export default function SavedScreen() {
 
   const upcomingCount = savedGames.filter((g) => isGameUpcoming(g)).length
 
-  function unsave(id: string) {
-    setSavedIds((ids) => ids.filter((savedId) => savedId !== id))
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="light-content" />
@@ -95,7 +90,7 @@ export default function SavedScreen() {
       <View style={{ paddingHorizontal: 16, paddingTop: 56, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
-            saved<Text style={{ color: colors.accent }}>.</Text>
+            pickup<Text style={{ color: colors.accent }}>.</Text>
           </Text>
           {upcomingCount > 0 && (
             <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
@@ -155,7 +150,8 @@ export default function SavedScreen() {
                     <Text style={{ color: '#ccc', fontSize: 10 }}>{game.sport}</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => unsave(game.id)}
+                    onPress={() => toggleSaved(game.id)}
+                    hitSlop={8}
                     style={{ position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, padding: 6, borderWidth: 0.5, borderColor: '#444' }}
                   >
                     <Ionicons name="heart" size={16} color={colors.accent} />

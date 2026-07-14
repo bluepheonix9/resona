@@ -131,7 +131,7 @@ export default function MapScreen() {
       >
         <View>
           <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
-            map<Text style={{ color: colors.accent }}>.</Text>
+            pickup<Text style={{ color: colors.accent }}>.</Text>
           </Text>
           <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
             {MAP_GAMES.length} games nearby
