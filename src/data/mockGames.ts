@@ -3,7 +3,7 @@ import type { Game } from '../types/game'
 // Keep the demo feeling live: anchor every game's date to "now" so the
 // Today / This week / Weekend tabs always have real content, whenever the app
 // is opened. `startTime` stays a human label; only the day slides.
-function relativeISO(daysFromToday: number, hour: number, minute = 0): string {
+export function relativeISO(daysFromToday: number, hour: number, minute = 0): string {
   const d = new Date()
   d.setDate(d.getDate() + daysFromToday)
   d.setHours(hour, minute, 0, 0)
@@ -11,7 +11,7 @@ function relativeISO(daysFromToday: number, hour: number, minute = 0): string {
 }
 
 // Days from today until the next occurrence of a weekday (0=Sun … 6=Sat).
-function daysUntilWeekday(target: number): number {
+export function daysUntilWeekday(target: number): number {
   const today = new Date().getDay()
   return (target - today + 7) % 7
 }

@@ -13,6 +13,7 @@ type StoreState = {
   joinedIds: string[]
   // null until the user creates their profile.
   profile: Profile | null
+  hostedGames: Game[]
 }
 
 // Seed a few saved games so the Saved tab isn't empty on first launch.
@@ -20,6 +21,7 @@ let state: StoreState = {
   savedIds: ['2', '3', '1'],
   joinedIds: [],
   profile: null,
+  hostedGames: [],
 }
 
 const listeners = new Set<() => void>()
@@ -62,6 +64,19 @@ export function useIsJoined(id: string): boolean {
   return useJoinedIds().includes(id)
 }
 
+export function useHostedGames(): Game[] {
+  return useSyncExternalStore(
+    subscribe,
+    () => state.hostedGames,
+    () => state.hostedGames,
+  )
+}
+
+// Non-hook read for plain lib code (e.g. getGameById outside React).
+export function getHostedGames(): Game[] {
+  return state.hostedGames
+}
+
 export function useProfile(): Profile | null {
   return useSyncExternalStore(
     subscribe,
@@ -88,6 +103,10 @@ export function joinGame(id: string) {
 
 export function leaveGame(id: string) {
   setState({ joinedIds: state.joinedIds.filter((joinedId) => joinedId !== id) })
+}
+
+export function addHostedGame(game: Game) {
+  setState({ hostedGames: [game, ...state.hostedGames] })
 }
 
 // Blank slate merged under partial saves when no profile exists yet.

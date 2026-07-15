@@ -5,8 +5,8 @@ import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-nativ
 import { Difficulty } from '../../src/components/Difficulty'
 import { DEFAULT_FILTERS, FilterSheet, countActiveFilters, type HomeFilters } from '../../src/components/FilterSheet'
 import { GameMiniCard } from '../../src/components/GameMiniCard'
-import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getGames, getNearbyGames } from '../../src/lib/games'
-import { effectiveSpotsLeft, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
+import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getMergedGames, getNearbyGames } from '../../src/lib/games'
+import { effectiveSpotsLeft, toggleSaved, useHostedGames, useIsJoined, useIsSaved } from '../../src/lib/store'
 import { colors } from '../../src/theme'
 import type { Game, GameFilters, GameStatus, TimeWindow } from '../../src/types/game'
 
@@ -143,9 +143,10 @@ export default function HomeScreen() {
   const tab = TABS.find((t) => t.when === activeTab) ?? TABS[0]
   const activeCount = countActiveFilters(filters)
 
+  const hosted = useHostedGames()
   const games = React.useMemo(
-    () => getGames(toGameFilters(activeTab, filters)),
-    [activeTab, filters],
+    () => getMergedGames(hosted, toGameFilters(activeTab, filters)),
+    [hosted, activeTab, filters],
   )
 
   return (
@@ -225,7 +226,7 @@ export default function HomeScreen() {
       <FilterSheet
         visible={sheetVisible}
         initial={filters}
-        countFor={(draft) => getGames(toGameFilters(activeTab, draft)).length}
+        countFor={(draft) => getMergedGames(hosted, toGameFilters(activeTab, draft)).length}
         onClose={() => setSheetVisible(false)}
         onApply={(f) => {
           setFilters(f)
