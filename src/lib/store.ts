@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { Game } from '../types/game'
+import type { Profile } from '../types/profile'
 
 // Lightweight app store for the demo core loop — saves and joins that stay in
 // sync across the Home feed, game detail, and the Saved tab. Dependency-free:
@@ -10,12 +11,15 @@ import type { Game } from '../types/game'
 type StoreState = {
   savedIds: string[]
   joinedIds: string[]
+  // null until the user creates their profile.
+  profile: Profile | null
 }
 
 // Seed a few saved games so the Saved tab isn't empty on first launch.
 let state: StoreState = {
   savedIds: ['2', '3', '1'],
   joinedIds: [],
+  profile: null,
 }
 
 const listeners = new Set<() => void>()
@@ -58,6 +62,14 @@ export function useIsJoined(id: string): boolean {
   return useJoinedIds().includes(id)
 }
 
+export function useProfile(): Profile | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => state.profile,
+    () => state.profile,
+  )
+}
+
 // ---- Actions ----
 
 export function toggleSaved(id: string) {
@@ -76,6 +88,28 @@ export function joinGame(id: string) {
 
 export function leaveGame(id: string) {
   setState({ joinedIds: state.joinedIds.filter((joinedId) => joinedId !== id) })
+}
+
+// Blank slate merged under partial saves when no profile exists yet.
+const EMPTY_PROFILE: Profile = {
+  displayName: '',
+  handle: '',
+  bio: '',
+  homeArea: '',
+  favoriteSports: [],
+  skillLevel: 'beginner',
+  avatarEmoji: '',
+}
+
+// Create-or-update: merges the patch over the existing profile (or a blank
+// one), so the editor can save the whole form or a single field.
+export function saveProfile(patch: Partial<Profile>) {
+  const base = state.profile ?? EMPTY_PROFILE
+  setState({ profile: { ...base, ...patch } })
+}
+
+export function clearProfile() {
+  setState({ profile: null })
 }
 
 // ---- Derived helpers ----

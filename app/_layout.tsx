@@ -7,6 +7,7 @@ export default function RootLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="game/[id]" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   )
