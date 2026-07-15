@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics'
 import React from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -100,7 +101,10 @@ export default function GameDetailScreen() {
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => toggleSaved(game.id)}
+              onPress={() => {
+                toggleSaved(game.id)
+                Haptics.selectionAsync()
+              }}
               style={{
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 borderRadius: 20,
@@ -201,13 +205,22 @@ export default function GameDetailScreen() {
                 <Ionicons name="checkmark-circle" size={18} color={colors.accent} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>You're in</Text>
               </View>
-              <TouchableOpacity onPress={() => leaveGame(game.id)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  leaveGame(game.id)
+                  Haptics.selectionAsync()
+                }}
+                style={{ alignItems: 'center', paddingVertical: 8 }}
+              >
                 <Text style={{ fontSize: 13, color: colors.textMuted }}>Leave game</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
-              onPress={() => setSheetVisible(true)}
+              onPress={() => {
+                setSheetVisible(true)
+                Haptics.selectionAsync()
+              }}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -248,7 +261,10 @@ export default function GameDetailScreen() {
         visible={sheetVisible}
         spotsLeft={spotsLeft}
         onClose={() => setSheetVisible(false)}
-        onConfirm={() => joinGame(game.id)}
+        onConfirm={() => {
+          joinGame(game.id)
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        }}
       />
     </View>
   )
