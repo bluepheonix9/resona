@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput,
 import { daysUntilWeekday, relativeISO } from '../src/data/mockGames'
 import { getAreas, getBrowseTags, getSports } from '../src/lib/games'
 import { addHostedGame } from '../src/lib/store'
+import { requestVenuePick } from '../src/lib/venuePicker'
 import { colors } from '../src/theme'
 import type { Difficulty, Game } from '../src/types/game'
 
@@ -105,6 +106,7 @@ export default function HostGameScreen() {
   const [title, setTitle] = React.useState('')
   const [titleEdited, setTitleEdited] = React.useState(false)
   const [venueName, setVenueName] = React.useState('')
+  const [venueCoords, setVenueCoords] = React.useState<{ lat: number; lng: number } | null>(null)
   const [area, setArea] = React.useState('')
   const [dateChoice, setDateChoice] = React.useState<DateChoice | null>(null)
   const [time, setTime] = React.useState('')
@@ -131,6 +133,11 @@ export default function HostGameScreen() {
     setTags((current) => (current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]))
   }
 
+  function pickLocation() {
+    requestVenuePick(({ lat, lng }) => setVenueCoords({ lat, lng }))
+    router.push('/pick-venue')
+  }
+
   function post() {
     if (!canPost || !dateChoice || !difficulty) return
     const parsed = parseTime(time)
@@ -141,7 +148,7 @@ export default function HostGameScreen() {
       sport,
       difficulty,
       tags,
-      venue: { name: venueName.trim() || 'TBC', area, lat: 0, lng: 0 },
+      venue: { name: venueName.trim() || 'TBC', area, lat: venueCoords?.lat ?? 0, lng: venueCoords?.lng ?? 0 },
       startsAt: relativeISO(daysFromToday(dateChoice), parsed?.hour ?? 18, parsed?.minute ?? 0),
       startTime: trimmedTime ? `Starts ${trimmedTime}` : 'Starts 6pm',
       price: priceMode === 'free' ? 'Free' : priceAmount.trim() || '$?',
@@ -204,6 +211,30 @@ export default function HostGameScreen() {
 
           <Section title="VENUE NAME">
             <Field value={venueName} onChangeText={setVenueName} placeholder="e.g. Bondi Skate Park Courts" />
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity
+                onPress={pickLocation}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 10,
+                  backgroundColor: colors.surface2,
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 12,
+                  borderWidth: 0.5,
+                  borderColor: venueCoords ? colors.accent : colors.borderStrong,
+                }}
+              >
+                <Ionicons name="location-outline" size={16} color={venueCoords ? colors.accent : colors.textSecondary} />
+                <Text style={{ fontSize: 13, color: venueCoords ? colors.textPrimary : colors.textSecondary }}>
+                  {venueCoords
+                    ? `📍 Selected: ${venueCoords.lat.toFixed(4)}, ${venueCoords.lng.toFixed(4)}`
+                    : 'Pick location on map'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </Section>
 
           <Section title="AREA">

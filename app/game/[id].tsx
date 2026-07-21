@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
 import { GameHero } from '../../src/components/GameHero'
 import { Difficulty } from '../../src/components/Difficulty'
+import { GameChat } from '../../src/components/GameChat'
 import { JoinSheet } from '../../src/components/JoinSheet'
 import { formatGameDateLong, formatVenueLabel, getGameById } from '../../src/lib/games'
 import { effectiveSpotsLeft, joinGame, leaveGame, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
@@ -253,6 +254,8 @@ export default function GameDetailScreen() {
             <Ionicons name="map-outline" size={18} color={colors.textSecondary} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>View on map</Text>
           </TouchableOpacity>
+
+          {joined && <GameChat gameId={game.id} />}
         </View>
       </ScrollView>
 
