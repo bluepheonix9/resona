@@ -129,6 +129,10 @@ export function getHostedGames(): Game[] {
   return state.hostedGames
 }
 
+export function useIsHosted(id: string): boolean {
+  return useHostedGames().some((game) => game.id === id)
+}
+
 export function useProfile(): Profile | null {
   return useSyncExternalStore(
     subscribe,
@@ -170,6 +174,23 @@ export function leaveGame(id: string) {
 
 export function addHostedGame(game: Game) {
   setState({ hostedGames: [game, ...state.hostedGames] })
+}
+
+export function updateHostedGame(id: string, patch: Partial<Game>) {
+  setState({
+    hostedGames: state.hostedGames.map((game) => (game.id === id ? { ...game, ...patch, id } : game)),
+  })
+}
+
+// Cancel a hosted game and scrub any references so it stops resolving anywhere.
+export function removeHostedGame(id: string) {
+  const { [id]: _removed, ...remainingChats } = state.gameChats
+  setState({
+    hostedGames: state.hostedGames.filter((game) => game.id !== id),
+    savedIds: state.savedIds.filter((savedId) => savedId !== id),
+    joinedIds: state.joinedIds.filter((joinedId) => joinedId !== id),
+    gameChats: remainingChats,
+  })
 }
 
 // Blank slate merged under partial saves when no profile exists yet.

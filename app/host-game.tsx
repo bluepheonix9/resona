@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import React from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { daysUntilWeekday, relativeISO } from '../src/data/mockGames'
-import { getAreas, getBrowseTags, getSports } from '../src/lib/games'
-import { addHostedGame } from '../src/lib/store'
+import { getAreas, getBrowseTags, getSports, getGameById } from '../src/lib/games'
+import { addHostedGame, updateHostedGame, useProfile } from '../src/lib/store'
 import { requestVenuePick } from '../src/lib/venuePicker'
 import { colors } from '../src/theme'
 import type { Difficulty, Game } from '../src/types/game'
@@ -29,6 +29,24 @@ function daysFromToday(choice: DateChoice): number {
   if (choice === 'today') return 0
   if (choice === 'tomorrow') return 1
   return daysUntilWeekday(SATURDAY)
+}
+
+// ---- Reverse-mapping helpers, used to prefill the form when editing ----
+
+function calendarDay(d: Date): number {
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86_400_000)
+}
+
+// Best-effort: the exact date isn't stored, only which chip produced it.
+function deriveDateChoice(iso: string): DateChoice {
+  const diff = calendarDay(new Date(iso)) - calendarDay(new Date())
+  if (diff <= 0) return 'today'
+  if (diff === 1) return 'tomorrow'
+  return 'weekend'
+}
+
+function formatTimeInput(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 // Loose "6pm" / "6:30 PM" / "18:00" parse; null when it doesn't look like a time.
@@ -102,19 +120,35 @@ function Field(props: {
 }
 
 export default function HostGameScreen() {
-  const [sport, setSport] = React.useState('')
-  const [title, setTitle] = React.useState('')
-  const [titleEdited, setTitleEdited] = React.useState(false)
-  const [venueName, setVenueName] = React.useState('')
-  const [venueCoords, setVenueCoords] = React.useState<{ lat: number; lng: number } | null>(null)
-  const [area, setArea] = React.useState('')
-  const [dateChoice, setDateChoice] = React.useState<DateChoice | null>(null)
-  const [time, setTime] = React.useState('')
-  const [spots, setSpots] = React.useState('')
-  const [priceMode, setPriceMode] = React.useState<'free' | 'paid' | null>(null)
-  const [priceAmount, setPriceAmount] = React.useState('')
-  const [difficulty, setDifficulty] = React.useState<Difficulty | null>(null)
-  const [tags, setTags] = React.useState<string[]>([])
+  const { id: editId } = useLocalSearchParams<{ id?: string }>()
+  const editing = React.useMemo(() => (editId ? getGameById(editId) : undefined), [editId])
+  const profile = useProfile()
+
+  const [sport, setSport] = React.useState(() => editing?.sport ?? '')
+  const [title, setTitle] = React.useState(() => editing?.title ?? '')
+  const [titleEdited, setTitleEdited] = React.useState(!!editing)
+  const [venueName, setVenueName] = React.useState(() =>
+    editing && editing.venue.name !== 'TBC' ? editing.venue.name : '',
+  )
+  const [venueCoords, setVenueCoords] = React.useState<{ lat: number; lng: number } | null>(() =>
+    editing && (editing.venue.lat !== 0 || editing.venue.lng !== 0)
+      ? { lat: editing.venue.lat, lng: editing.venue.lng }
+      : null,
+  )
+  const [area, setArea] = React.useState(() => editing?.venue.area ?? '')
+  const [dateChoice, setDateChoice] = React.useState<DateChoice | null>(() =>
+    editing ? deriveDateChoice(editing.startsAt) : null,
+  )
+  const [time, setTime] = React.useState(() => (editing ? formatTimeInput(editing.startsAt) : ''))
+  const [spots, setSpots] = React.useState(() => (editing ? String(editing.spots) : ''))
+  const [priceMode, setPriceMode] = React.useState<'free' | 'paid' | null>(() =>
+    editing ? (editing.price === 'Free' ? 'free' : 'paid') : null,
+  )
+  const [priceAmount, setPriceAmount] = React.useState(() =>
+    editing && editing.price !== 'Free' ? editing.price : '',
+  )
+  const [difficulty, setDifficulty] = React.useState<Difficulty | null>(() => editing?.difficulty ?? null)
+  const [tags, setTags] = React.useState<string[]>(() => editing?.tags ?? [])
 
   const canPost =
     sport !== '' &&
@@ -142,8 +176,9 @@ export default function HostGameScreen() {
     if (!canPost || !dateChoice || !difficulty) return
     const parsed = parseTime(time)
     const trimmedTime = time.trim()
-    const game: Game = {
-      id: Date.now().toString(),
+    const totalSpots = parseInt(spots, 10) || 10
+
+    const fields = {
       title: title.trim() || `${sport} — ${area}`,
       sport,
       difficulty,
@@ -152,13 +187,25 @@ export default function HostGameScreen() {
       startsAt: relativeISO(daysFromToday(dateChoice), parsed?.hour ?? 18, parsed?.minute ?? 0),
       startTime: trimmedTime ? `Starts ${trimmedTime}` : 'Starts 6pm',
       price: priceMode === 'free' ? 'Free' : priceAmount.trim() || '$?',
-      status: 'open',
-      imageFallback: '#1A1A1A',
-      spots: parseInt(spots, 10) || 10,
-      spotsLeft: parseInt(spots, 10) || 10,
-      featured: false,
+      spots: totalSpots,
     }
-    addHostedGame(game)
+
+    if (editing) {
+      // Preserve how many spots are already taken as total spots changes.
+      const taken = editing.spots - editing.spotsLeft
+      updateHostedGame(editing.id, { ...fields, spotsLeft: Math.max(0, totalSpots - taken) })
+    } else {
+      const game: Game = {
+        ...fields,
+        id: Date.now().toString(),
+        status: 'open',
+        imageFallback: '#1A1A1A',
+        spotsLeft: totalSpots,
+        featured: false,
+        organizer: { name: profile?.displayName || 'You', avatarEmoji: profile?.avatarEmoji || '' },
+      }
+      addHostedGame(game)
+    }
     router.back()
   }
 
@@ -170,9 +217,9 @@ export default function HostGameScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
           <Text style={{ fontSize: 14, color: colors.textSecondary }}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>Host a game</Text>
+        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>{editing ? 'Edit game' : 'Host a game'}</Text>
         <TouchableOpacity onPress={post} disabled={!canPost} hitSlop={8}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accent : colors.textMuted }}>Post</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accent : colors.textMuted }}>{editing ? 'Save' : 'Post'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -308,9 +355,9 @@ export default function HostGameScreen() {
               borderColor: canPost ? colors.accent : colors.borderStrong,
             }}
           >
-            <Ionicons name="megaphone-outline" size={18} color={canPost ? colors.accentDark : colors.textMuted} />
+            <Ionicons name={editing ? 'checkmark-outline' : 'megaphone-outline'} size={18} color={canPost ? colors.accentDark : colors.textMuted} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accentDark : colors.textMuted }}>
-              {canPost ? 'Post game' : 'Fill in the required fields'}
+              {canPost ? (editing ? 'Save changes' : 'Post game') : 'Fill in the required fields'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
