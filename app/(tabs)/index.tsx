@@ -169,12 +169,9 @@ export default function HomeScreen() {
         <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
           pickup<Text style={{ color: colors.accent }}>.</Text>
         </Text>
-        <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-          <TouchableOpacity onPress={() => router.push('/search')} hitSlop={8}>
-            <Ionicons name="search-outline" size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
-          <Ionicons name="notifications-outline" size={22} color={colors.textSecondary} />
-        </View>
+        <TouchableOpacity onPress={() => router.push('/search')} hitSlop={8}>
+          <Ionicons name="search-outline" size={22} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       {/* Time tabs */}

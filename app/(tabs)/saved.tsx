@@ -87,20 +87,15 @@ export default function SavedScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 56, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View>
-          <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
-            pickup<Text style={{ color: colors.accent }}>.</Text>
+      <View style={{ paddingHorizontal: 16, paddingTop: 56, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
+          pickup<Text style={{ color: colors.accent }}>.</Text>
+        </Text>
+        {upcomingCount > 0 && (
+          <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+            {upcomingCount} upcoming
           </Text>
-          {upcomingCount > 0 && (
-            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-              {upcomingCount} upcoming
-            </Text>
-          )}
-        </View>
-        <TouchableOpacity>
-          <Ionicons name="calendar-outline" size={22} color={colors.textSecondary} />
-        </TouchableOpacity>
+        )}
       </View>
 
       <View style={{ flexDirection: 'row', paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: colors.border, marginBottom: 10 }}>
