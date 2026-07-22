@@ -2,8 +2,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { useAuth } from '../src/lib/auth'
 import { getAreas, getSports } from '../src/lib/games'
 import { saveProfile, useProfile } from '../src/lib/store'
+import { supabase } from '../src/lib/supabase'
 import { colors } from '../src/theme'
 import type { Difficulty } from '../src/types/game'
 import type { Profile } from '../src/types/profile'
@@ -98,6 +100,7 @@ function Field(props: {
 
 export default function EditProfileScreen() {
   const existing = useProfile()
+  const { user } = useAuth()
   const [draft, setDraft] = React.useState<Profile>(existing ?? BLANK)
 
   const canSave = draft.displayName.trim().length > 0
@@ -112,8 +115,20 @@ export default function EditProfileScreen() {
   }
 
   function save() {
-    if (!canSave) return
-    saveProfile({ ...draft, displayName: draft.displayName.trim(), bio: draft.bio.trim() })
+    if (!canSave || !user) return
+    const cleaned = { ...draft, displayName: draft.displayName.trim(), bio: draft.bio.trim() }
+    saveProfile(cleaned)
+    void supabase.from('profiles').upsert({
+      id: user.id,
+      display_name: cleaned.displayName,
+      handle: cleaned.handle,
+      bio: cleaned.bio,
+      home_area: cleaned.homeArea,
+      favorite_sports: cleaned.favoriteSports,
+      skill_level: cleaned.skillLevel,
+      avatar_emoji: cleaned.avatarEmoji,
+      updated_at: new Date().toISOString(),
+    })
     router.back()
   }
 

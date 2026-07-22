@@ -5,6 +5,7 @@ import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-nativ
 import { Difficulty } from '../../src/components/Difficulty'
 import { formatGameDate, formatVenueLabel } from '../../src/lib/games'
 import { useHostedGames, useJoinedIds, useProfile, useSavedIds } from '../../src/lib/store'
+import { supabase } from '../../src/lib/supabase'
 import { colors } from '../../src/theme'
 import type { Profile } from '../../src/types/profile'
 
@@ -183,10 +184,26 @@ function ProfileView({ profile }: { profile: Profile }) {
           paddingVertical: 14,
           borderWidth: 0.5,
           borderColor: colors.borderStrong,
+          marginBottom: 10,
         }}
       >
         <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
         <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Edit profile</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => supabase.auth.signOut()}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          borderRadius: 12,
+          paddingVertical: 14,
+        }}
+      >
+        <Ionicons name="log-out-outline" size={18} color={colors.textMuted} />
+        <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textMuted }}>Sign out</Text>
       </TouchableOpacity>
     </ScrollView>
   )
