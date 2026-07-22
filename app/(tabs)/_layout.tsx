@@ -1,5 +1,6 @@
-import { Tabs } from 'expo-router'
+import { Tabs, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { TouchableOpacity, View } from 'react-native'
 import { colors } from '../../src/theme'
 
 export default function TabLayout() {
@@ -38,6 +39,34 @@ export default function TabLayout() {
           title: 'Map',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="host"
+        options={{
+          title: '',
+          tabBarButton: () => (
+            <TouchableOpacity
+              onPress={() => router.push('/host-game')}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+              accessibilityLabel="Host a game"
+              accessibilityRole="button"
+            >
+              <View
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 29,
+                  backgroundColor: colors.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: -6,
+                }}
+              >
+                <Ionicons name="add" size={30} color={colors.accentDark} />
+              </View>
+            </TouchableOpacity>
           ),
         }}
       />

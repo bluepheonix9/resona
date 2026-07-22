@@ -3,7 +3,7 @@ import type { Game } from '../types/game'
 // Keep the demo feeling live: anchor every game's date to "now" so the
 // Today / This week / Weekend tabs always have real content, whenever the app
 // is opened. `startTime` stays a human label; only the day slides.
-function relativeISO(daysFromToday: number, hour: number, minute = 0): string {
+export function relativeISO(daysFromToday: number, hour: number, minute = 0): string {
   const d = new Date()
   d.setDate(d.getDate() + daysFromToday)
   d.setHours(hour, minute, 0, 0)
@@ -11,7 +11,7 @@ function relativeISO(daysFromToday: number, hour: number, minute = 0): string {
 }
 
 // Days from today until the next occurrence of a weekday (0=Sun … 6=Sat).
-function daysUntilWeekday(target: number): number {
+export function daysUntilWeekday(target: number): number {
   const today = new Date().getDay()
   return (target - today + 7) % 7
 }
@@ -31,6 +31,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Starts 6pm',
     price: 'Free',
     status: 'live',
+    imageUrl: 'https://images.unsplash.com/photo-1546519638-68711109d298?w=400&h=160&fit=crop',
     imageFallback: '#0a0f1a',
     spots: 6,
     spotsLeft: 2,
@@ -47,6 +48,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Starts 10am',
     price: '$5',
     status: 'upcoming',
+    imageUrl: 'https://images.unsplash.com/photo-1551958219-acbc608c6377?w=400&h=160&fit=crop',
     imageFallback: '#0a1a0f',
     spots: 14,
     spotsLeft: 6,
@@ -63,6 +65,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Starts 3pm',
     price: 'Free',
     status: 'open',
+    imageUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400&h=160&fit=crop',
     imageFallback: '#1a140a',
     spots: 8,
     spotsLeft: 4,
@@ -78,6 +81,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Starts 8am',
     price: '$8',
     status: 'upcoming',
+    imageUrl: 'https://images.unsplash.com/photo-1554068865-24cecd4e34c8?w=400&h=160&fit=crop',
     imageFallback: '#14001a',
     spots: 8,
     spotsLeft: 3,
@@ -93,6 +97,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Starts 5:30pm',
     price: 'Free',
     status: 'open',
+    imageUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=160&fit=crop',
     imageFallback: '#1a0a0a',
     spots: 12,
     spotsLeft: 7,
@@ -109,6 +114,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Started 7pm',
     price: '$6',
     status: 'open',
+    imageUrl: 'https://images.unsplash.com/photo-1518611505868-d7b87081b695?w=400&h=160&fit=crop',
     imageFallback: '#0a1414',
     spots: 10,
     spotsLeft: 0,
@@ -124,6 +130,7 @@ export const MOCK_GAMES: Game[] = [
     startTime: 'Started 5:30pm',
     price: 'Free',
     status: 'open',
+    imageUrl: 'https://images.unsplash.com/photo-1552674605-5defe6aa44bb?w=400&h=160&fit=crop',
     imageFallback: '#14140a',
     spots: 30,
     spotsLeft: 12,

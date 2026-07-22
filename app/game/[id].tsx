@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics'
 import React from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
@@ -5,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
 import { GameHero } from '../../src/components/GameHero'
 import { Difficulty } from '../../src/components/Difficulty'
+import { GameChat } from '../../src/components/GameChat'
 import { JoinSheet } from '../../src/components/JoinSheet'
 import { formatGameDateLong, formatVenueLabel, getGameById } from '../../src/lib/games'
 import { effectiveSpotsLeft, joinGame, leaveGame, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
@@ -100,7 +102,10 @@ export default function GameDetailScreen() {
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => toggleSaved(game.id)}
+              onPress={() => {
+                toggleSaved(game.id)
+                Haptics.selectionAsync()
+              }}
               style={{
                 backgroundColor: 'rgba(0,0,0,0.5)',
                 borderRadius: 20,
@@ -201,13 +206,22 @@ export default function GameDetailScreen() {
                 <Ionicons name="checkmark-circle" size={18} color={colors.accent} />
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>You're in</Text>
               </View>
-              <TouchableOpacity onPress={() => leaveGame(game.id)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+              <TouchableOpacity
+                onPress={() => {
+                  leaveGame(game.id)
+                  Haptics.selectionAsync()
+                }}
+                style={{ alignItems: 'center', paddingVertical: 8 }}
+              >
                 <Text style={{ fontSize: 13, color: colors.textMuted }}>Leave game</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
-              onPress={() => setSheetVisible(true)}
+              onPress={() => {
+                setSheetVisible(true)
+                Haptics.selectionAsync()
+              }}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -240,6 +254,8 @@ export default function GameDetailScreen() {
             <Ionicons name="map-outline" size={18} color={colors.textSecondary} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>View on map</Text>
           </TouchableOpacity>
+
+          {joined && <GameChat gameId={game.id} />}
         </View>
       </ScrollView>
 
@@ -248,7 +264,10 @@ export default function GameDetailScreen() {
         visible={sheetVisible}
         spotsLeft={spotsLeft}
         onClose={() => setSheetVisible(false)}
-        onConfirm={() => joinGame(game.id)}
+        onConfirm={() => {
+          joinGame(game.id)
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+        }}
       />
     </View>
   )

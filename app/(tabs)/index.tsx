@@ -1,12 +1,13 @@
+import * as Haptics from 'expo-haptics'
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React from 'react'
-import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
+import { Image, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import { Difficulty } from '../../src/components/Difficulty'
 import { DEFAULT_FILTERS, FilterSheet, countActiveFilters, type HomeFilters } from '../../src/components/FilterSheet'
 import { GameMiniCard } from '../../src/components/GameMiniCard'
-import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getGames, getNearbyGames } from '../../src/lib/games'
-import { effectiveSpotsLeft, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
+import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getMergedGames, getNearbyGames } from '../../src/lib/games'
+import { effectiveSpotsLeft, toggleSaved, useHostedGames, useIsJoined, useIsSaved } from '../../src/lib/store'
 import { colors } from '../../src/theme'
 import type { Game, GameFilters, GameStatus, TimeWindow } from '../../src/types/game'
 
@@ -57,6 +58,7 @@ function GameCard({ game }: { game: Game }) {
   return (
     <TouchableOpacity onPress={() => router.push(`/game/${game.id}`)} style={{ backgroundColor: colors.surface, borderRadius: 14, overflow: 'hidden', borderWidth: 0.5, borderColor: joined ? colors.accent : colors.borderStrong }}>
       <View style={{ height: 160, backgroundColor: getGameImageColor(game), alignItems: 'center', justifyContent: 'center' }}>
+        {game.imageUrl && <Image source={{ uri: game.imageUrl }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" />}
         <View style={{ position: 'absolute', top: 10, left: 10, flexDirection: 'row', gap: 6 }}>
           <BadgePill status={game.status} />
           {joined && (
@@ -70,7 +72,10 @@ function GameCard({ game }: { game: Game }) {
           <Text style={{ color: '#ccc', fontSize: 10 }}>{game.sport}</Text>
         </View>
         <TouchableOpacity
-          onPress={() => toggleSaved(game.id)}
+          onPress={() => {
+            toggleSaved(game.id)
+            Haptics.selectionAsync()
+          }}
           hitSlop={8}
           style={{ position: 'absolute', bottom: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, padding: 6, borderWidth: 0.5, borderColor: '#444' }}
         >
@@ -139,14 +144,21 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = React.useState<TimeWindow>('today')
   const [filters, setFilters] = React.useState<HomeFilters>(DEFAULT_FILTERS)
   const [sheetVisible, setSheetVisible] = React.useState(false)
+  const [refreshing, setRefreshing] = React.useState(false)
 
   const tab = TABS.find((t) => t.when === activeTab) ?? TABS[0]
   const activeCount = countActiveFilters(filters)
 
+  const hosted = useHostedGames()
   const games = React.useMemo(
-    () => getGames(toGameFilters(activeTab, filters)),
-    [activeTab, filters],
+    () => getMergedGames(hosted, toGameFilters(activeTab, filters)),
+    [hosted, activeTab, filters],
   )
+
+  const handleRefresh = React.useCallback(() => {
+    setRefreshing(true)
+    setTimeout(() => setRefreshing(false), 1000)
+  }, [])
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -208,7 +220,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Feed (curated rows on the default Today view, then the filtered list) */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}>
         {activeTab === 'today' && activeCount === 0 && <CuratedSections />}
 
         <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>{tab.section}</Text>
@@ -225,7 +237,7 @@ export default function HomeScreen() {
       <FilterSheet
         visible={sheetVisible}
         initial={filters}
-        countFor={(draft) => getGames(toGameFilters(activeTab, draft)).length}
+        countFor={(draft) => getMergedGames(hosted, toGameFilters(activeTab, draft)).length}
         onClose={() => setSheetVisible(false)}
         onApply={(f) => {
           setFilters(f)
