@@ -9,7 +9,7 @@ import { Difficulty } from '../../src/components/Difficulty'
 import { GameChat } from '../../src/components/GameChat'
 import { JoinSheet } from '../../src/components/JoinSheet'
 import { formatGameDateLong, formatVenueLabel, getGameById } from '../../src/lib/games'
-import { effectiveSpotsLeft, joinGame, leaveGame, toggleSaved, useIsJoined, useIsSaved } from '../../src/lib/store'
+import { effectiveSpotsLeft, joinGame, leaveGame, removeHostedGame, toggleSaved, useIsHosted, useIsJoined, useIsSaved } from '../../src/lib/store'
 import type { GameStatus } from '../../src/types/game'
 
 function BadgePill({ status }: { status: GameStatus }) {
@@ -61,11 +61,14 @@ function DetailRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMa
 
 export default function GameDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const game = id ? getGameById(id) : undefined
 
   const saved = useIsSaved(id ?? '')
   const joined = useIsJoined(id ?? '')
+  // Subscribes to hostedGames, so the screen re-derives after an edit/cancel.
+  const hosted = useIsHosted(id ?? '')
+  const game = id ? getGameById(id) : undefined
   const [sheetVisible, setSheetVisible] = React.useState(false)
+  const [confirmCancel, setConfirmCancel] = React.useState(false)
 
   if (!game) {
     return (
@@ -79,6 +82,17 @@ export default function GameDetailScreen() {
   }
 
   const spotsLeft = effectiveSpotsLeft(game, joined)
+
+  function handleCancel() {
+    if (!confirmCancel) {
+      setConfirmCancel(true)
+      Haptics.selectionAsync()
+      return
+    }
+    removeHostedGame(game!.id)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+    router.back()
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -120,6 +134,11 @@ export default function GameDetailScreen() {
           <View style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
               <BadgePill status={game.status} />
+              {hosted && (
+                <View style={{ backgroundColor: colors.accent, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ color: colors.accentDark, fontSize: 11, fontWeight: '600' }}>Hosted by you</Text>
+                </View>
+              )}
               {game.featured && (
                 <View style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)' }}>
                   <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '600' }}>Featured</Text>
@@ -141,6 +160,9 @@ export default function GameDetailScreen() {
             <DetailRow icon="football-outline" label="Sport" value={game.sport} />
             <DetailRow icon="people-outline" label="Spots" value={`${spotsLeft} of ${game.spots} spots left`} />
             <DetailRow icon="location-outline" label="Venue" value={formatVenueLabel(game)} />
+            {game.organizer && (
+              <DetailRow icon="person-outline" label="Organizer" value={hosted ? 'You' : game.organizer.name} />
+            )}
           </View>
 
           {game.tags.length > 0 && (
@@ -188,7 +210,44 @@ export default function GameDetailScreen() {
             </Text>
           </View>
 
-          {joined ? (
+          {hosted ? (
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => router.push(`/host-game?id=${game.id}`)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  backgroundColor: colors.accent,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                }}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.accentDark} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accentDark }}>Edit game</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCancel}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  backgroundColor: colors.surface,
+                  borderRadius: 12,
+                  paddingVertical: 14,
+                  borderWidth: 1,
+                  borderColor: colors.live,
+                }}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.live} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.live }}>
+                  {confirmCancel ? 'Tap again to cancel game' : 'Cancel game'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : joined ? (
             <View style={{ gap: 10 }}>
               <View
                 style={{
@@ -255,7 +314,7 @@ export default function GameDetailScreen() {
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>View on map</Text>
           </TouchableOpacity>
 
-          {joined && <GameChat gameId={game.id} />}
+          {(joined || hosted) && <GameChat gameId={game.id} />}
         </View>
       </ScrollView>
 

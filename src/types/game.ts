@@ -9,6 +9,11 @@ export type Venue = {
   lng: number
 }
 
+export type Organizer = {
+  name: string
+  avatarEmoji: string
+}
+
 export type Game = {
   id: string
   title: string
@@ -25,6 +30,8 @@ export type Game = {
   spots: number
   spotsLeft: number
   featured?: boolean
+  // Present on games created in-app; stamped from the host's profile.
+  organizer?: Organizer
 }
 
 export type TimeWindow = 'today' | 'upcoming' | 'past'

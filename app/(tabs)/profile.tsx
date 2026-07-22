@@ -3,7 +3,8 @@ import { router } from 'expo-router'
 import React from 'react'
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import { Difficulty } from '../../src/components/Difficulty'
-import { useJoinedIds, useProfile, useSavedIds } from '../../src/lib/store'
+import { formatGameDate, formatVenueLabel } from '../../src/lib/games'
+import { useHostedGames, useJoinedIds, useProfile, useSavedIds } from '../../src/lib/store'
 import { colors } from '../../src/theme'
 import type { Profile } from '../../src/types/profile'
 
@@ -93,6 +94,7 @@ function EmptyProfile() {
 function ProfileView({ profile }: { profile: Profile }) {
   const joinedCount = useJoinedIds().length
   const savedCount = useSavedIds().length
+  const hosted = useHostedGames()
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
@@ -116,8 +118,9 @@ function ProfileView({ profile }: { profile: Profile }) {
 
       {/* Stats */}
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-        <StatBox value={joinedCount} label="Games joined" />
-        <StatBox value={savedCount} label="Games saved" />
+        <StatBox value={joinedCount} label="Joined" />
+        <StatBox value={savedCount} label="Saved" />
+        <StatBox value={hosted.length} label="Hosted" />
       </View>
 
       {/* Bio */}
@@ -139,6 +142,30 @@ function ProfileView({ profile }: { profile: Profile }) {
               <View key={sport} style={{ backgroundColor: colors.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 0.5, borderColor: colors.borderStrong }}>
                 <Text style={{ fontSize: 12, color: colors.textSecondary }}>{sport}</Text>
               </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {hosted.length > 0 && (
+        <View style={{ marginBottom: 24 }}>
+          <Text style={{ fontSize: 11, color: colors.textMuted, letterSpacing: 0.8, marginBottom: 8 }}>YOUR GAMES</Text>
+          <View style={{ gap: 10 }}>
+            {hosted.map((game) => (
+              <TouchableOpacity
+                key={game.id}
+                onPress={() => router.push(`/game/${game.id}`)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderWidth: 0.5, borderColor: colors.borderStrong }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: colors.textPrimary }}>{game.title}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>{formatVenueLabel(game)}</Text>
+                  <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
+                    {formatGameDate(game)} · {game.startTime} · {game.spotsLeft}/{game.spots} spots
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
             ))}
           </View>
         </View>
