@@ -172,11 +172,10 @@ export default function ProfileScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar barStyle="light-content" />
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 56, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 56, paddingBottom: 8 }}>
         <Text style={{ fontSize: 26, fontWeight: '500', color: colors.textPrimary }}>
           pickup<Text style={{ color: colors.accent }}>.</Text>
         </Text>
-        <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
       </View>
 
       {profile ? <ProfileView profile={profile} /> : <EmptyProfile />}
