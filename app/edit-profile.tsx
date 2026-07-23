@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import React from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { useAuth } from '../src/lib/auth'
 import { getAreas, getSports } from '../src/lib/games'
+import { upsertProfile } from '../src/lib/profileSync'
 import { saveProfile, useProfile } from '../src/lib/store'
-import { supabase } from '../src/lib/supabase'
 import { colors } from '../src/theme'
 import type { Difficulty } from '../src/types/game'
 import type { Profile } from '../src/types/profile'
@@ -102,8 +102,10 @@ export default function EditProfileScreen() {
   const existing = useProfile()
   const { user } = useAuth()
   const [draft, setDraft] = React.useState<Profile>(existing ?? BLANK)
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState('')
 
-  const canSave = draft.displayName.trim().length > 0
+  const canSave = draft.displayName.trim().length > 0 && !saving
 
   function toggleSport(sport: string) {
     setDraft((d) => ({
@@ -114,21 +116,27 @@ export default function EditProfileScreen() {
     }))
   }
 
-  function save() {
-    if (!canSave || !user) return
+  async function save() {
+    if (!canSave) return
+    if (!user) {
+      setError('You must be signed in to save your profile.')
+      return
+    }
     const cleaned = { ...draft, displayName: draft.displayName.trim(), bio: draft.bio.trim() }
+    setSaving(true)
+    setError('')
+
+    // Write to Supabase first — only update local state + leave on success, so a
+    // failed write surfaces instead of being silently dropped.
+    const { error: err } = await upsertProfile(user.id, cleaned)
+
+    if (err) {
+      setSaving(false)
+      setError(err.message)
+      return
+    }
+
     saveProfile(cleaned)
-    void supabase.from('profiles').upsert({
-      id: user.id,
-      display_name: cleaned.displayName,
-      handle: cleaned.handle,
-      bio: cleaned.bio,
-      home_area: cleaned.homeArea,
-      favorite_sports: cleaned.favoriteSports,
-      skill_level: cleaned.skillLevel,
-      avatar_emoji: cleaned.avatarEmoji,
-      updated_at: new Date().toISOString(),
-    })
     router.back()
   }
 
@@ -145,7 +153,11 @@ export default function EditProfileScreen() {
           {existing ? 'Edit profile' : 'Create profile'}
         </Text>
         <TouchableOpacity onPress={save} disabled={!canSave} hitSlop={8}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: canSave ? colors.accent : colors.textMuted }}>Save</Text>
+          {saving ? (
+            <ActivityIndicator color={colors.accent} />
+          ) : (
+            <Text style={{ fontSize: 14, fontWeight: '600', color: canSave ? colors.accent : colors.textMuted }}>Save</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -155,6 +167,21 @@ export default function EditProfileScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {error !== '' && (
+            <View
+              style={{
+                backgroundColor: 'rgba(255,59,48,0.15)',
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 16,
+                borderWidth: 0.5,
+                borderColor: colors.live,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: colors.live }}>{error}</Text>
+            </View>
+          )}
+
           <Section title="AVATAR">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               <TouchableOpacity
@@ -266,10 +293,16 @@ export default function EditProfileScreen() {
               borderColor: canSave ? colors.accent : colors.borderStrong,
             }}
           >
-            <Ionicons name="checkmark-circle-outline" size={18} color={canSave ? colors.accentDark : colors.textMuted} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: canSave ? colors.accentDark : colors.textMuted }}>
-              {canSave ? 'Save profile' : 'Add your name to save'}
-            </Text>
+            {saving ? (
+              <ActivityIndicator color={colors.textSecondary} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={18} color={canSave ? colors.accentDark : colors.textMuted} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: canSave ? colors.accentDark : colors.textMuted }}>
+                  {canSave ? 'Save profile' : 'Add your name to save'}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

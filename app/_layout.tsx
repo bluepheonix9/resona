@@ -2,15 +2,35 @@ import { Stack } from 'expo-router'
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { AuthProvider, useAuth } from '../src/lib/auth'
-import { loadStateFromStorage } from '../src/lib/store'
+import { fetchProfile } from '../src/lib/profileSync'
+import { clearProfile, loadStateFromStorage, saveProfile } from '../src/lib/store'
 import { colors } from '../src/theme'
 
 function RootNavigator() {
-  const { session, loading } = useAuth()
+  const { session, loading, user } = useAuth()
 
   React.useEffect(() => {
     loadStateFromStorage()
   }, [])
+
+  // Hydrate the profile from Supabase as the source of truth: pull it on sign-in
+  // (overwriting the local cache), and clear it on sign-out so the next user
+  // doesn't inherit the previous one's profile. Keyed on the user id so periodic
+  // token refreshes don't re-fetch.
+  const userId = user?.id
+  React.useEffect(() => {
+    if (!userId) {
+      clearProfile()
+      return
+    }
+    let cancelled = false
+    fetchProfile(userId).then((profile) => {
+      if (!cancelled && profile) saveProfile(profile)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [userId])
 
   if (loading) {
     return (
