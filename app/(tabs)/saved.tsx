@@ -7,21 +7,14 @@ import { Difficulty } from '../../src/components/Difficulty'
 import {
   formatGameDate,
   formatVenueLabel,
+  getFeedGames,
   getGameImageColor,
-  getGames,
   isGameUpcoming,
 } from '../../src/lib/games'
-import { toggleSaved, useSavedIds } from '../../src/lib/store'
+import { toggleSaved, useRemoteGames, useSavedIds } from '../../src/lib/store'
 import type { Game, GameStatus } from '../../src/types/game'
 
 const TABS = ['Upcoming', 'Past']
-
-// Cosmetic "saved X ago" labels for the seeded games; new saves just omit it.
-const SAVED_META: Record<string, { savedAt: string }> = {
-  '2': { savedAt: '2 days ago' },
-  '3': { savedAt: 'Yesterday' },
-  '1': { savedAt: '1 week ago' },
-}
 
 function BadgePill({ game }: { game: Game }) {
   if (!isGameUpcoming(game)) {
@@ -75,8 +68,9 @@ function EmptyState({ tab }: { tab: string }) {
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = React.useState('Upcoming')
   const savedIds = useSavedIds()
+  const remote = useRemoteGames()
 
-  const savedGames = getGames({ ids: savedIds })
+  const savedGames = getFeedGames(remote, { ids: savedIds })
   const filteredGames = savedGames.filter((game) =>
     activeTab === 'Upcoming' ? isGameUpcoming(game) : !isGameUpcoming(game),
   )
@@ -168,9 +162,6 @@ export default function SavedScreen() {
                     <Text style={{ fontSize: 11, color: colors.accent }}>{game.price}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {SAVED_META[game.id] && (
-                      <Text style={{ fontSize: 11, color: colors.textMuted }}>Saved {SAVED_META[game.id].savedAt}</Text>
-                    )}
                     <Difficulty level={game.difficulty} compact />
                   </View>
                 </View>

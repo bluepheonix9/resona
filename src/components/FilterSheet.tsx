@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons'
 import React from 'react'
 import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native'
 import { getAreas, getBrowseTags, getSports } from '../lib/games'
+import { useRemoteGames } from '../lib/store'
 import { colors } from '../theme'
 import type { Difficulty, PriceFilter } from '../types/game'
 
@@ -84,8 +85,9 @@ export function FilterSheet({ visible, initial, countFor, onClose, onApply }: Fi
     if (visible) setDraft(initial)
   }, [visible, initial])
 
-  const sports = React.useMemo(() => ['All', ...getSports()], [])
-  const areas = React.useMemo(() => ['All', ...getAreas()], [])
+  const remote = useRemoteGames()
+  const sports = React.useMemo(() => ['All', ...getSports(remote)], [remote])
+  const areas = React.useMemo(() => ['All', ...getAreas(remote)], [remote])
   const tags = React.useMemo(() => getBrowseTags(), [])
   const resultCount = countFor(draft)
 

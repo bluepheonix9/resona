@@ -3,7 +3,7 @@ import { router } from 'expo-router'
 import React from 'react'
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { useAuth } from '../src/lib/auth'
-import { getAreas, getSports } from '../src/lib/games'
+import { AREA_OPTIONS, SPORT_OPTIONS } from '../src/lib/games'
 import { upsertProfile } from '../src/lib/profileSync'
 import { saveProfile, useProfile } from '../src/lib/store'
 import { colors } from '../src/theme'
@@ -251,7 +251,7 @@ export default function EditProfileScreen() {
 
           <Section title="HOME AREA">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {getAreas().map((area) => (
+              {AREA_OPTIONS.map((area) => (
                 <Chip
                   key={area}
                   label={area}
@@ -264,7 +264,7 @@ export default function EditProfileScreen() {
 
           <Section title="FAVORITE SPORTS">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {getSports().map((sport) => (
+              {SPORT_OPTIONS.map((sport) => (
                 <Chip key={sport} label={sport} selected={draft.favoriteSports.includes(sport)} onPress={() => toggleSport(sport)} />
               ))}
             </View>

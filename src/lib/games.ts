@@ -1,6 +1,9 @@
-import { MOCK_GAMES } from '../data/mockGames'
 import { getRemoteGames } from './store'
 import type { Game, GameFilters, TimeWindow } from '../types/game'
+
+// Query/derive helpers over the games list. Games live in Supabase and are held
+// in the store's `remoteGames`; screens read them reactively via
+// `useRemoteGames()` and pass the list into these pure functions.
 
 function startOfDay(date: Date): Date {
   const d = new Date(date)
@@ -22,7 +25,13 @@ function matchesWhen(game: Game, when: TimeWindow, now = new Date()): boolean {
   return startDay < today
 }
 
-const BROWSE_SPORTS = [
+const BROWSE_TAGS = ['Outdoor', 'Indoor', 'Social', 'Casual', 'Beach', 'Court']
+
+// Curated option lists for the create/edit forms (host a game, profile). These
+// are the sports/areas the app offers — fixed, independent of what games happen
+// to exist right now. (The Filters sheet, by contrast, derives its options from
+// the live games via getSports/getAreas so no filter ever returns zero.)
+export const SPORT_OPTIONS = [
   'Basketball',
   'Soccer',
   'Volleyball',
@@ -33,10 +42,27 @@ const BROWSE_SPORTS = [
   'Running',
 ]
 
-const BROWSE_TAGS = ['Outdoor', 'Indoor', 'Social', 'Casual', 'Beach', 'Court']
+export const AREA_OPTIONS = [
+  'Bondi',
+  'Centennial Park',
+  'Manly',
+  'Newtown',
+  'Rushcutters Bay',
+  'Alexandria',
+  'Rozelle',
+  'Surry Hills',
+  'Parramatta',
+]
 
 function isFree(game: Game): boolean {
   return game.price.trim().toLowerCase() === 'free'
+}
+
+// A game plots on the map only if it has real coordinates. Games hosted without
+// the venue picker are stored at 0,0 — filter those out so they don't land in
+// the ocean off West Africa.
+function hasRealLocation(game: Game): boolean {
+  return game.venue.lat !== 0 || game.venue.lng !== 0
 }
 
 function applyFilters(games: Game[], filters?: GameFilters): Game[] {
@@ -57,33 +83,21 @@ function applyFilters(games: Game[], filters?: GameFilters): Game[] {
   })
 }
 
-export function getGames(filters?: GameFilters): Game[] {
-  return applyFilters(MOCK_GAMES, filters)
+// The main feed: the given games, filtered.
+export function getFeedGames(games: Game[], filters?: GameFilters): Game[] {
+  return applyFilters(games, filters)
 }
 
-// Same as getGames but with backend games prepended before filtering.
-export function getMergedGames(remote: Game[], filters?: GameFilters): Game[] {
-  return applyFilters([...remote, ...MOCK_GAMES], filters)
-}
-
+// Look up a single game by id. Reads the current store snapshot, so it also
+// works for non-React callers; React callers should still subscribe via
+// `useRemoteGames()` so they re-render when the games list loads.
 export function getGameById(id: string): Game | undefined {
-  return getRemoteGames().find((game) => game.id === id) ?? MOCK_GAMES.find((game) => game.id === id)
+  return getRemoteGames().find((game) => game.id === id)
 }
 
-export function getGamesForMap(filters?: GameFilters): Game[] {
-  return getGames(filters)
-}
-
-export function getFeaturedGames(): Game[] {
-  return getGames({ featured: true })
-}
-
-export function getBrowseSports() {
-  return BROWSE_SPORTS.map((label) => ({
-    id: label.toLowerCase().replace(/\s+/g, '-'),
-    label,
-    count: MOCK_GAMES.filter((game) => game.sport === label).length,
-  }))
+// Games that have a real location, filtered — used by the map.
+export function getGamesForMap(games: Game[], filters?: GameFilters): Game[] {
+  return applyFilters(games.filter(hasRealLocation), filters)
 }
 
 export function getBrowseTags() {
@@ -92,18 +106,18 @@ export function getBrowseTags() {
 
 // Distinct sports/areas actually present in the data — used to build the
 // Filters sheet so no filter option ever returns zero games.
-export function getSports(): string[] {
-  return Array.from(new Set(MOCK_GAMES.map((game) => game.sport)))
+export function getSports(games: Game[]): string[] {
+  return Array.from(new Set(games.map((game) => game.sport)))
 }
 
-export function getAreas(): string[] {
-  return Array.from(new Set(MOCK_GAMES.map((game) => game.venue.area)))
+export function getAreas(games: Game[]): string[] {
+  return Array.from(new Set(games.map((game) => game.venue.area)))
 }
 
-export function getVenues() {
+export function getVenues(games: Game[]) {
   const venueMap = new Map<string, { id: string; name: string; area: string; games: number }>()
 
-  for (const game of MOCK_GAMES) {
+  for (const game of games) {
     const key = game.venue.name
     const existing = venueMap.get(key)
     if (existing) {
@@ -168,16 +182,17 @@ function distanceTo(game: Game): number {
 }
 
 // Non-past games, nearest first.
-export function getNearbyGames(limit = 6): Game[] {
-  return MOCK_GAMES.filter((game) => !isPastGame(game))
+export function getNearbyGames(games: Game[], limit = 6): Game[] {
+  return games
+    .filter((game) => !isPastGame(game))
     .sort((a, b) => distanceTo(a) - distanceTo(b))
     .slice(0, limit)
 }
 
 // Featured games happening on the coming weekend (falls back to all featured
 // upcoming games if none land on a weekend).
-export function getFeaturedWeekendGames(): Game[] {
-  const featured = MOCK_GAMES.filter((game) => game.featured && !isPastGame(game))
+export function getFeaturedWeekendGames(games: Game[]): Game[] {
+  const featured = games.filter((game) => game.featured && !isPastGame(game))
   const onWeekend = featured.filter((game) => {
     const day = new Date(game.startsAt).getDay()
     return day === 0 || day === 6
@@ -186,15 +201,15 @@ export function getFeaturedWeekendGames(): Game[] {
 }
 
 // Non-past free games.
-export function getFreeGames(): Game[] {
-  return MOCK_GAMES.filter((game) => isFree(game) && !isPastGame(game))
+export function getFreeGames(games: Game[]): Game[] {
+  return games.filter((game) => isFree(game) && !isPastGame(game))
 }
 
 // Full-text-ish search over title, sport, venue name and area.
-export function searchGames(query: string): Game[] {
+export function searchGames(games: Game[], query: string): Game[] {
   const q = query.trim().toLowerCase()
   if (!q) return []
-  return MOCK_GAMES.filter((game) => {
+  return games.filter((game) => {
     return (
       game.title.toLowerCase().includes(q) ||
       game.sport.toLowerCase().includes(q) ||

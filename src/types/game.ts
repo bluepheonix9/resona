@@ -30,10 +30,10 @@ export type Game = {
   spots: number
   spotsLeft: number
   featured?: boolean
-  // Present on games created in-app; stamped from the host's profile.
+  // The host's profile, embedded from Supabase for display (organizer name/avatar).
   organizer?: Organizer
-  // Auth user id of the host, for games that live in Supabase. Absent on the
-  // local demo seed (MOCK_GAMES).
+  // Auth user id of the host. Optional only because in-progress form drafts may
+  // not have it yet; every persisted game row has one.
   hostId?: string
 }
 
