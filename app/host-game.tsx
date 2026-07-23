@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import React from 'react'
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { daysUntilWeekday, relativeISO } from '../src/data/mockGames'
+import { useAuth } from '../src/lib/auth'
 import { getAreas, getBrowseTags, getSports, getGameById } from '../src/lib/games'
-import { addHostedGame, updateHostedGame, useProfile } from '../src/lib/store'
+import { insertGame, updateGame, type GameInput } from '../src/lib/gamesSync'
+import { upsertLocalGame } from '../src/lib/store'
 import { requestVenuePick } from '../src/lib/venuePicker'
 import { colors } from '../src/theme'
-import type { Difficulty, Game } from '../src/types/game'
+import type { Difficulty } from '../src/types/game'
 
 const SATURDAY = 6
 
@@ -122,7 +124,9 @@ function Field(props: {
 export default function HostGameScreen() {
   const { id: editId } = useLocalSearchParams<{ id?: string }>()
   const editing = React.useMemo(() => (editId ? getGameById(editId) : undefined), [editId])
-  const profile = useProfile()
+  const { user } = useAuth()
+  const [saving, setSaving] = React.useState(false)
+  const [error, setError] = React.useState('')
 
   const [sport, setSport] = React.useState(() => editing?.sport ?? '')
   const [title, setTitle] = React.useState(() => editing?.title ?? '')
@@ -157,7 +161,8 @@ export default function HostGameScreen() {
     time.trim() !== '' &&
     spots.trim() !== '' &&
     priceMode !== null &&
-    difficulty !== null
+    difficulty !== null &&
+    !saving
 
   function autoTitle(nextSport: string, nextArea: string) {
     if (!titleEdited && nextSport && nextArea) setTitle(`${nextSport} — ${nextArea}`)
@@ -172,13 +177,19 @@ export default function HostGameScreen() {
     router.push('/pick-venue')
   }
 
-  function post() {
+  async function post() {
     if (!canPost || !dateChoice || !difficulty) return
+    if (!user) {
+      setError('You must be signed in to host a game.')
+      return
+    }
     const parsed = parseTime(time)
     const trimmedTime = time.trim()
     const totalSpots = parseInt(spots, 10) || 10
+    // Preserve how many spots are already taken as total spots changes on edit.
+    const taken = editing ? editing.spots - editing.spotsLeft : 0
 
-    const fields = {
+    const input: GameInput = {
       title: title.trim() || `${sport} — ${area}`,
       sport,
       difficulty,
@@ -187,25 +198,26 @@ export default function HostGameScreen() {
       startsAt: relativeISO(daysFromToday(dateChoice), parsed?.hour ?? 18, parsed?.minute ?? 0),
       startTime: trimmedTime ? `Starts ${trimmedTime}` : 'Starts 6pm',
       price: priceMode === 'free' ? 'Free' : priceAmount.trim() || '$?',
+      status: editing?.status ?? 'open',
+      imageFallback: editing?.imageFallback ?? '#1A1A1A',
+      featured: editing?.featured ?? false,
       spots: totalSpots,
+      spotsLeft: editing ? Math.max(0, totalSpots - taken) : totalSpots,
     }
 
-    if (editing) {
-      // Preserve how many spots are already taken as total spots changes.
-      const taken = editing.spots - editing.spotsLeft
-      updateHostedGame(editing.id, { ...fields, spotsLeft: Math.max(0, totalSpots - taken) })
-    } else {
-      const game: Game = {
-        ...fields,
-        id: Date.now().toString(),
-        status: 'open',
-        imageFallback: '#1A1A1A',
-        spotsLeft: totalSpots,
-        featured: false,
-        organizer: { name: profile?.displayName || 'You', avatarEmoji: profile?.avatarEmoji || '' },
-      }
-      addHostedGame(game)
+    setSaving(true)
+    setError('')
+    const { game, error: err } = editing
+      ? await updateGame(editing.id, input)
+      : await insertGame(user.id, input)
+
+    if (err || !game) {
+      setSaving(false)
+      setError(err ?? 'Something went wrong.')
+      return
     }
+
+    upsertLocalGame(game)
     router.back()
   }
 
@@ -219,7 +231,11 @@ export default function HostGameScreen() {
         </TouchableOpacity>
         <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>{editing ? 'Edit game' : 'Host a game'}</Text>
         <TouchableOpacity onPress={post} disabled={!canPost} hitSlop={8}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accent : colors.textMuted }}>{editing ? 'Save' : 'Post'}</Text>
+          {saving ? (
+            <ActivityIndicator color={colors.accent} />
+          ) : (
+            <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accent : colors.textMuted }}>{editing ? 'Save' : 'Post'}</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -229,6 +245,21 @@ export default function HostGameScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {error !== '' && (
+            <View
+              style={{
+                backgroundColor: 'rgba(255,59,48,0.15)',
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 16,
+                borderWidth: 0.5,
+                borderColor: colors.live,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: colors.live }}>{error}</Text>
+            </View>
+          )}
+
           <Section title="SPORT">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {getSports().map((s) => (
@@ -355,10 +386,16 @@ export default function HostGameScreen() {
               borderColor: canPost ? colors.accent : colors.borderStrong,
             }}
           >
-            <Ionicons name={editing ? 'checkmark-outline' : 'megaphone-outline'} size={18} color={canPost ? colors.accentDark : colors.textMuted} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accentDark : colors.textMuted }}>
-              {canPost ? (editing ? 'Save changes' : 'Post game') : 'Fill in the required fields'}
-            </Text>
+            {saving ? (
+              <ActivityIndicator color={colors.textSecondary} />
+            ) : (
+              <>
+                <Ionicons name={editing ? 'checkmark-outline' : 'megaphone-outline'} size={18} color={canPost ? colors.accentDark : colors.textMuted} />
+                <Text style={{ fontSize: 14, fontWeight: '600', color: canPost ? colors.accentDark : colors.textMuted }}>
+                  {canPost ? (editing ? 'Save changes' : 'Post game') : 'Fill in the required fields'}
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

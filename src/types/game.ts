@@ -32,6 +32,9 @@ export type Game = {
   featured?: boolean
   // Present on games created in-app; stamped from the host's profile.
   organizer?: Organizer
+  // Auth user id of the host, for games that live in Supabase. Absent on the
+  // local demo seed (MOCK_GAMES).
+  hostId?: string
 }
 
 export type TimeWindow = 'today' | 'upcoming' | 'past'
