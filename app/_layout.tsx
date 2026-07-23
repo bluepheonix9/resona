@@ -45,19 +45,24 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-      {session ? (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="game/[id]" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="host-game" options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="pick-venue" options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="+not-found" />
-        </>
-      ) : (
+      {/* Protected routes: when `guard` flips false, Expo Router redirects away
+          from any active protected screen to the anchor route. This is what
+          actually navigates the user in/out on sign-in and sign-out — declaring
+          screens conditionally only swaps options, it never redirects. */}
+      <Stack.Protected guard={!!session}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="game/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="search" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="host-game" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="pick-venue" options={{ animation: 'slide_from_bottom' }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" />
-      )}
+      </Stack.Protected>
+
+      <Stack.Screen name="+not-found" />
     </Stack>
   )
 }
