@@ -1,5 +1,5 @@
 import { MOCK_GAMES } from '../data/mockGames'
-import { getHostedGames } from './store'
+import { getRemoteGames } from './store'
 import type { Game, GameFilters, TimeWindow } from '../types/game'
 
 function startOfDay(date: Date): Date {
@@ -61,13 +61,13 @@ export function getGames(filters?: GameFilters): Game[] {
   return applyFilters(MOCK_GAMES, filters)
 }
 
-// Same as getGames but with user-hosted games prepended before filtering.
-export function getMergedGames(hosted: Game[], filters?: GameFilters): Game[] {
-  return applyFilters([...hosted, ...MOCK_GAMES], filters)
+// Same as getGames but with backend games prepended before filtering.
+export function getMergedGames(remote: Game[], filters?: GameFilters): Game[] {
+  return applyFilters([...remote, ...MOCK_GAMES], filters)
 }
 
 export function getGameById(id: string): Game | undefined {
-  return MOCK_GAMES.find((game) => game.id === id) ?? getHostedGames().find((game) => game.id === id)
+  return getRemoteGames().find((game) => game.id === id) ?? MOCK_GAMES.find((game) => game.id === id)
 }
 
 export function getGamesForMap(filters?: GameFilters): Game[] {

@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics'
 import React from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, Alert } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../src/theme'
@@ -9,7 +9,8 @@ import { Difficulty } from '../../src/components/Difficulty'
 import { GameChat } from '../../src/components/GameChat'
 import { JoinSheet } from '../../src/components/JoinSheet'
 import { formatGameDateLong, formatVenueLabel, getGameById } from '../../src/lib/games'
-import { effectiveSpotsLeft, joinGame, leaveGame, removeHostedGame, toggleSaved, useIsHosted, useIsJoined, useIsSaved } from '../../src/lib/store'
+import { deleteGame } from '../../src/lib/gamesSync'
+import { effectiveSpotsLeft, joinGame, leaveGame, removeLocalGame, toggleSaved, useIsHosted, useIsJoined, useIsSaved } from '../../src/lib/store'
 import type { GameStatus } from '../../src/types/game'
 
 function BadgePill({ status }: { status: GameStatus }) {
@@ -69,6 +70,7 @@ export default function GameDetailScreen() {
   const game = id ? getGameById(id) : undefined
   const [sheetVisible, setSheetVisible] = React.useState(false)
   const [confirmCancel, setConfirmCancel] = React.useState(false)
+  const [cancelling, setCancelling] = React.useState(false)
 
   if (!game) {
     return (
@@ -83,13 +85,22 @@ export default function GameDetailScreen() {
 
   const spotsLeft = effectiveSpotsLeft(game, joined)
 
-  function handleCancel() {
+  async function handleCancel() {
     if (!confirmCancel) {
       setConfirmCancel(true)
       Haptics.selectionAsync()
       return
     }
-    removeHostedGame(game!.id)
+    setCancelling(true)
+    const { error } = await deleteGame(game!.id)
+    if (error) {
+      setCancelling(false)
+      setConfirmCancel(false)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+      Alert.alert('Could not cancel game', error)
+      return
+    }
+    removeLocalGame(game!.id)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
     router.back()
   }
@@ -229,6 +240,7 @@ export default function GameDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleCancel}
+                disabled={cancelling}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -241,10 +253,16 @@ export default function GameDetailScreen() {
                   borderColor: colors.live,
                 }}
               >
-                <Ionicons name="trash-outline" size={18} color={colors.live} />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.live }}>
-                  {confirmCancel ? 'Tap again to cancel game' : 'Cancel game'}
-                </Text>
+                {cancelling ? (
+                  <ActivityIndicator color={colors.live} />
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={18} color={colors.live} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: colors.live }}>
+                      {confirmCancel ? 'Tap again to cancel game' : 'Cancel game'}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           ) : joined ? (

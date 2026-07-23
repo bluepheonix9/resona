@@ -2,8 +2,9 @@ import { Stack } from 'expo-router'
 import React from 'react'
 import { ActivityIndicator, View } from 'react-native'
 import { AuthProvider, useAuth } from '../src/lib/auth'
+import { loadGames } from '../src/lib/gamesSync'
 import { fetchProfile } from '../src/lib/profileSync'
-import { clearProfile, loadStateFromStorage, saveProfile } from '../src/lib/store'
+import { clearProfile, loadStateFromStorage, saveProfile, setCurrentUser } from '../src/lib/store'
 import { colors } from '../src/theme'
 
 function RootNavigator() {
@@ -19,6 +20,7 @@ function RootNavigator() {
   // token refreshes don't re-fetch.
   const userId = user?.id
   React.useEffect(() => {
+    setCurrentUser(userId ?? null)
     if (!userId) {
       clearProfile()
       return
@@ -27,6 +29,7 @@ function RootNavigator() {
     fetchProfile(userId).then((profile) => {
       if (!cancelled && profile) saveProfile(profile)
     })
+    void loadGames()
     return () => {
       cancelled = true
     }

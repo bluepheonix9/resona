@@ -6,16 +6,20 @@ import type { Profile } from '../types/profile'
 
 // Lightweight app store for the demo core loop — saves and joins that stay in
 // sync across the Home feed, game detail, and the Saved tab. Dependency-free
-// on state management: a tiny external store read through
-// useSyncExternalStore. hostedGames and profile are persisted to AsyncStorage
-// so they survive app restarts; everything else is in-memory only for now.
+// on state management: a tiny external store read through useSyncExternalStore.
+// Games now live in Supabase and are held here in `remoteGames` (fetched on
+// sign-in). profile is persisted to AsyncStorage as an offline cache; saves,
+// joins and chat are in-memory only for now.
 
 type StoreState = {
   savedIds: string[]
   joinedIds: string[]
   // null until the user creates their profile.
   profile: Profile | null
-  hostedGames: Game[]
+  // All games fetched from Supabase (everyone's, not just the current user's).
+  remoteGames: Game[]
+  // Auth user id of the signed-in user, used to tell which games are "mine".
+  currentUserId: string | null
   // Per-game chat threads, keyed by game id. In-memory only for now.
   gameChats: Record<string, Message[]>
 }
@@ -25,7 +29,8 @@ let state: StoreState = {
   savedIds: ['2', '3', '1'],
   joinedIds: [],
   profile: null,
-  hostedGames: [],
+  remoteGames: [],
+  currentUserId: null,
   gameChats: {},
 }
 
@@ -34,20 +39,16 @@ const listeners = new Set<() => void>()
 function setState(next: Partial<StoreState>) {
   state = { ...state, ...next }
   listeners.forEach((listener) => listener())
-  if ('hostedGames' in next || 'profile' in next) void persistState()
+  if ('profile' in next) void persistState()
 }
 
 // ---- Persistence (AsyncStorage) ----
 
-const STORAGE_KEY_HOSTED = 'pickup_hostedGames'
 const STORAGE_KEY_PROFILE = 'pickup_profile'
 
 async function persistState() {
   try {
-    await AsyncStorage.multiSet([
-      [STORAGE_KEY_HOSTED, JSON.stringify(state.hostedGames)],
-      [STORAGE_KEY_PROFILE, JSON.stringify(state.profile)],
-    ])
+    await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(state.profile))
   } catch {
     // Best-effort: a failed write just means this change isn't persisted.
   }
@@ -57,27 +58,15 @@ export async function saveStateToStorage() {
   await persistState()
 }
 
-// Hydrate hostedGames and profile from disk. Corrupt or missing values fall
-// back to the in-memory defaults. Call once on app startup.
+// Hydrate the profile from disk. Corrupt or missing values fall back to the
+// in-memory defaults. Call once on app startup.
 export async function loadStateFromStorage() {
   try {
-    const pairs = await AsyncStorage.multiGet([STORAGE_KEY_HOSTED, STORAGE_KEY_PROFILE])
-    const stored = Object.fromEntries(pairs)
-    const next: Partial<StoreState> = {}
-
-    const rawHosted = stored[STORAGE_KEY_HOSTED]
-    if (rawHosted) {
-      const parsed = JSON.parse(rawHosted)
-      if (Array.isArray(parsed)) next.hostedGames = parsed
+    const raw = await AsyncStorage.getItem(STORAGE_KEY_PROFILE)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') setState({ profile: parsed })
     }
-
-    const rawProfile = stored[STORAGE_KEY_PROFILE]
-    if (rawProfile) {
-      const parsed = JSON.parse(rawProfile)
-      if (parsed && typeof parsed === 'object') next.profile = parsed
-    }
-
-    if (Object.keys(next).length > 0) setState(next)
   } catch {
     // Corrupt data → keep defaults.
   }
@@ -116,21 +105,40 @@ export function useIsJoined(id: string): boolean {
   return useJoinedIds().includes(id)
 }
 
-export function useHostedGames(): Game[] {
+// All games from the backend (feed + map).
+export function useRemoteGames(): Game[] {
   return useSyncExternalStore(
     subscribe,
-    () => state.hostedGames,
-    () => state.hostedGames,
+    () => state.remoteGames,
+    () => state.remoteGames,
   )
 }
 
 // Non-hook read for plain lib code (e.g. getGameById outside React).
-export function getHostedGames(): Game[] {
-  return state.hostedGames
+export function getRemoteGames(): Game[] {
+  return state.remoteGames
+}
+
+// Memoized "games I host" so getSnapshot returns a stable reference until the
+// underlying games list or the signed-in user changes.
+let myGamesCache: { games: Game[]; userId: string | null; result: Game[] } | null = null
+function selectMyGames(): Game[] {
+  if (!myGamesCache || myGamesCache.games !== state.remoteGames || myGamesCache.userId !== state.currentUserId) {
+    const result = state.currentUserId
+      ? state.remoteGames.filter((game) => game.hostId === state.currentUserId)
+      : []
+    myGamesCache = { games: state.remoteGames, userId: state.currentUserId, result }
+  }
+  return myGamesCache.result
+}
+
+// Games hosted by the signed-in user (Profile "your games").
+export function useMyGames(): Game[] {
+  return useSyncExternalStore(subscribe, selectMyGames, selectMyGames)
 }
 
 export function useIsHosted(id: string): boolean {
-  return useHostedGames().some((game) => game.id === id)
+  return selectMyGames().some((game) => game.id === id)
 }
 
 export function useProfile(): Profile | null {
@@ -172,21 +180,33 @@ export function leaveGame(id: string) {
   setState({ joinedIds: state.joinedIds.filter((joinedId) => joinedId !== id) })
 }
 
-export function addHostedGame(game: Game) {
-  setState({ hostedGames: [game, ...state.hostedGames] })
+// Set who's signed in, so "my games" / host controls resolve correctly.
+export function setCurrentUser(userId: string | null) {
+  if (state.currentUserId === userId) return
+  setState({ currentUserId: userId })
 }
 
-export function updateHostedGame(id: string, patch: Partial<Game>) {
+// Replace the games list with a fresh fetch from the backend.
+export function setRemoteGames(games: Game[]) {
+  setState({ remoteGames: games })
+}
+
+// Add a newly created game, or replace it in place if it already exists (edit).
+export function upsertLocalGame(game: Game) {
+  const existed = state.remoteGames.some((g) => g.id === game.id)
+  // Keep an edited game in its original position; put a brand-new one on top.
   setState({
-    hostedGames: state.hostedGames.map((game) => (game.id === id ? { ...game, ...patch, id } : game)),
+    remoteGames: existed
+      ? state.remoteGames.map((g) => (g.id === game.id ? game : g))
+      : [game, ...state.remoteGames],
   })
 }
 
-// Cancel a hosted game and scrub any references so it stops resolving anywhere.
-export function removeHostedGame(id: string) {
+// Remove a cancelled game and scrub any references so it stops resolving.
+export function removeLocalGame(id: string) {
   const { [id]: _removed, ...remainingChats } = state.gameChats
   setState({
-    hostedGames: state.hostedGames.filter((game) => game.id !== id),
+    remoteGames: state.remoteGames.filter((game) => game.id !== id),
     savedIds: state.savedIds.filter((savedId) => savedId !== id),
     joinedIds: state.joinedIds.filter((joinedId) => joinedId !== id),
     gameChats: remainingChats,

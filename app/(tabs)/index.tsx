@@ -7,7 +7,8 @@ import { Difficulty } from '../../src/components/Difficulty'
 import { DEFAULT_FILTERS, FilterSheet, countActiveFilters, type HomeFilters } from '../../src/components/FilterSheet'
 import { GameMiniCard } from '../../src/components/GameMiniCard'
 import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getMergedGames, getNearbyGames } from '../../src/lib/games'
-import { effectiveSpotsLeft, toggleSaved, useHostedGames, useIsJoined, useIsSaved } from '../../src/lib/store'
+import { loadGames } from '../../src/lib/gamesSync'
+import { effectiveSpotsLeft, toggleSaved, useIsJoined, useIsSaved, useRemoteGames } from '../../src/lib/store'
 import { colors } from '../../src/theme'
 import type { Game, GameFilters, GameStatus, TimeWindow } from '../../src/types/game'
 
@@ -149,15 +150,15 @@ export default function HomeScreen() {
   const tab = TABS.find((t) => t.when === activeTab) ?? TABS[0]
   const activeCount = countActiveFilters(filters)
 
-  const hosted = useHostedGames()
+  const remote = useRemoteGames()
   const games = React.useMemo(
-    () => getMergedGames(hosted, toGameFilters(activeTab, filters)),
-    [hosted, activeTab, filters],
+    () => getMergedGames(remote, toGameFilters(activeTab, filters)),
+    [remote, activeTab, filters],
   )
 
   const handleRefresh = React.useCallback(() => {
     setRefreshing(true)
-    setTimeout(() => setRefreshing(false), 1000)
+    loadGames().finally(() => setRefreshing(false))
   }, [])
 
   return (
@@ -234,7 +235,7 @@ export default function HomeScreen() {
       <FilterSheet
         visible={sheetVisible}
         initial={filters}
-        countFor={(draft) => getMergedGames(hosted, toGameFilters(activeTab, draft)).length}
+        countFor={(draft) => getMergedGames(remote, toGameFilters(activeTab, draft)).length}
         onClose={() => setSheetVisible(false)}
         onApply={(f) => {
           setFilters(f)

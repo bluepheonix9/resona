@@ -4,7 +4,7 @@ import React from 'react'
 import { ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native'
 import { Difficulty } from '../../src/components/Difficulty'
 import { formatGameDate, formatVenueLabel } from '../../src/lib/games'
-import { useHostedGames, useJoinedIds, useProfile, useSavedIds } from '../../src/lib/store'
+import { useJoinedIds, useMyGames, useProfile, useSavedIds } from '../../src/lib/store'
 import { supabase } from '../../src/lib/supabase'
 import { colors } from '../../src/theme'
 import type { Profile } from '../../src/types/profile'
@@ -95,7 +95,7 @@ function EmptyProfile() {
 function ProfileView({ profile }: { profile: Profile }) {
   const joinedCount = useJoinedIds().length
   const savedCount = useSavedIds().length
-  const hosted = useHostedGames()
+  const hosted = useMyGames()
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
