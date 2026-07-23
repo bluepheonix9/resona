@@ -4,6 +4,7 @@ import React from 'react'
 import { ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { Difficulty } from '../src/components/Difficulty'
 import { formatVenueLabel, getGameImageColor, searchGames } from '../src/lib/games'
+import { useRemoteGames } from '../src/lib/store'
 import { colors } from '../src/theme'
 import type { Game } from '../src/types/game'
 
@@ -41,7 +42,8 @@ function ResultRow({ game }: { game: Game }) {
 
 export default function SearchScreen() {
   const [query, setQuery] = React.useState('')
-  const results = React.useMemo(() => searchGames(query), [query])
+  const remote = useRemoteGames()
+  const results = React.useMemo(() => searchGames(remote, query), [remote, query])
   const trimmed = query.trim()
 
   return (

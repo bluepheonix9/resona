@@ -6,7 +6,7 @@ import { Image, RefreshControl, ScrollView, StatusBar, Text, TouchableOpacity, V
 import { Difficulty } from '../../src/components/Difficulty'
 import { DEFAULT_FILTERS, FilterSheet, countActiveFilters, type HomeFilters } from '../../src/components/FilterSheet'
 import { GameMiniCard } from '../../src/components/GameMiniCard'
-import { formatVenueLabel, getFeaturedWeekendGames, getFreeGames, getGameImageColor, getMergedGames, getNearbyGames } from '../../src/lib/games'
+import { formatVenueLabel, getFeaturedWeekendGames, getFeedGames, getFreeGames, getGameImageColor, getNearbyGames } from '../../src/lib/games'
 import { loadGames } from '../../src/lib/gamesSync'
 import { effectiveSpotsLeft, toggleSaved, useIsJoined, useIsSaved, useRemoteGames } from '../../src/lib/store'
 import { colors } from '../../src/theme'
@@ -119,12 +119,12 @@ function CuratedRow({ title, games }: { title: string; games: Game[] }) {
   )
 }
 
-function CuratedSections() {
+function CuratedSections({ games }: { games: Game[] }) {
   return (
     <View style={{ paddingTop: 4 }}>
-      <CuratedRow title="NEAR YOU" games={getNearbyGames()} />
-      <CuratedRow title="FEATURED THIS WEEKEND" games={getFeaturedWeekendGames()} />
-      <CuratedRow title="FREE GAMES" games={getFreeGames()} />
+      <CuratedRow title="NEAR YOU" games={getNearbyGames(games)} />
+      <CuratedRow title="FEATURED THIS WEEKEND" games={getFeaturedWeekendGames(games)} />
+      <CuratedRow title="FREE GAMES" games={getFreeGames(games)} />
     </View>
   )
 }
@@ -152,7 +152,7 @@ export default function HomeScreen() {
 
   const remote = useRemoteGames()
   const games = React.useMemo(
-    () => getMergedGames(remote, toGameFilters(activeTab, filters)),
+    () => getFeedGames(remote, toGameFilters(activeTab, filters)),
     [remote, activeTab, filters],
   )
 
@@ -219,7 +219,7 @@ export default function HomeScreen() {
 
       {/* Feed (curated rows on the default Today view, then the filtered list) */}
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.accent} />}>
-        {activeTab === 'today' && activeCount === 0 && <CuratedSections />}
+        {activeTab === 'today' && activeCount === 0 && <CuratedSections games={remote} />}
 
         <Text style={{ fontSize: 11, color: colors.textMuted, paddingHorizontal: 16, letterSpacing: 0.8, marginBottom: 8 }}>{tab.section}</Text>
 
@@ -235,7 +235,7 @@ export default function HomeScreen() {
       <FilterSheet
         visible={sheetVisible}
         initial={filters}
-        countFor={(draft) => getMergedGames(remote, toGameFilters(activeTab, draft)).length}
+        countFor={(draft) => getFeedGames(remote, toGameFilters(activeTab, draft)).length}
         onClose={() => setSheetVisible(false)}
         onApply={(f) => {
           setFilters(f)

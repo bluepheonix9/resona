@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import React from 'react'
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native'
-import { daysUntilWeekday, relativeISO } from '../src/data/mockGames'
+import { daysUntilWeekday, relativeISO } from '../src/lib/dates'
 import { useAuth } from '../src/lib/auth'
-import { getAreas, getBrowseTags, getSports, getGameById } from '../src/lib/games'
+import { AREA_OPTIONS, getBrowseTags, getGameById, SPORT_OPTIONS } from '../src/lib/games'
 import { insertGame, updateGame, type GameInput } from '../src/lib/gamesSync'
-import { upsertLocalGame } from '../src/lib/store'
+import { upsertLocalGame, useRemoteGames } from '../src/lib/store'
 import { requestVenuePick } from '../src/lib/venuePicker'
 import { colors } from '../src/theme'
 import type { Difficulty } from '../src/types/game'
@@ -123,7 +123,8 @@ function Field(props: {
 
 export default function HostGameScreen() {
   const { id: editId } = useLocalSearchParams<{ id?: string }>()
-  const editing = React.useMemo(() => (editId ? getGameById(editId) : undefined), [editId])
+  const remote = useRemoteGames()
+  const editing = React.useMemo(() => (editId ? getGameById(editId) : undefined), [editId, remote])
   const { user } = useAuth()
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -262,7 +263,7 @@ export default function HostGameScreen() {
 
           <Section title="SPORT">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {getSports().map((s) => (
+              {SPORT_OPTIONS.map((s) => (
                 <Chip
                   key={s}
                   label={s}
@@ -317,7 +318,7 @@ export default function HostGameScreen() {
 
           <Section title="AREA">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {getAreas().map((a) => (
+              {AREA_OPTIONS.map((a) => (
                 <Chip
                   key={a}
                   label={a}

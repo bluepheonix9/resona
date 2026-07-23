@@ -6,6 +6,7 @@ import MapView, { Marker, type Region } from 'react-native-maps'
 import Supercluster from 'supercluster'
 import { Difficulty } from '../../src/components/Difficulty'
 import { formatVenueLabel, getGameById, getGameImageColor, getGamesForMap } from '../../src/lib/games'
+import { useRemoteGames } from '../../src/lib/store'
 import { colors } from '../../src/theme'
 import type { Game, GameStatus } from '../../src/types/game'
 
@@ -15,8 +16,6 @@ const SYDNEY_REGION: Region = {
   latitudeDelta: 0.16,
   longitudeDelta: 0.16,
 }
-
-const MAP_GAMES = getGamesForMap()
 
 type PointProps = { gameId: string }
 
@@ -119,18 +118,26 @@ function ClusterBubble({ count }: { count: number }) {
 export default function MapScreen() {
   const mapRef = React.useRef<MapView>(null)
   const [region, setRegion] = React.useState<Region>(SYDNEY_REGION)
-  const [selectedId, setSelectedId] = React.useState<string | null>(MAP_GAMES[0]?.id ?? null)
+  const [selectedId, setSelectedId] = React.useState<string | null>(null)
+
+  const remote = useRemoteGames()
+  const mapGames = React.useMemo(() => getGamesForMap(remote), [remote])
+
+  // Default the callout to the first game once games have loaded.
+  React.useEffect(() => {
+    if (selectedId === null && mapGames.length > 0) setSelectedId(mapGames[0].id)
+  }, [mapGames, selectedId])
 
   const selectedGame = selectedId ? getGameById(selectedId) : undefined
 
   const index = React.useMemo(() => {
-    const points: Supercluster.PointFeature<PointProps>[] = MAP_GAMES.map((game) => ({
+    const points: Supercluster.PointFeature<PointProps>[] = mapGames.map((game) => ({
       type: 'Feature',
       properties: { gameId: game.id },
       geometry: { type: 'Point', coordinates: [game.venue.lng, game.venue.lat] },
     }))
     return new Supercluster<PointProps>({ radius: 60, maxZoom: 16 }).load(points)
-  }, [])
+  }, [mapGames])
 
   const clusters = React.useMemo(
     () => index.getClusters(regionToBBox(region), regionToZoom(region)),
@@ -221,7 +228,7 @@ export default function MapScreen() {
             pickup<Text style={{ color: colors.accent }}>.</Text>
           </Text>
           <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
-            {MAP_GAMES.length} games nearby
+            {mapGames.length} games nearby
           </Text>
         </View>
         <TouchableOpacity

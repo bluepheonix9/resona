@@ -24,9 +24,8 @@ type StoreState = {
   gameChats: Record<string, Message[]>
 }
 
-// Seed a few saved games so the Saved tab isn't empty on first launch.
 let state: StoreState = {
-  savedIds: ['2', '3', '1'],
+  savedIds: [],
   joinedIds: [],
   profile: null,
   remoteGames: [],
